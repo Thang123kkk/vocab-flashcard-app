@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang chủ - Vocab App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="home"> <!-- Dấu hiệu nhận biết trang chủ -->
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="logo">📚</div>
+            <!-- Dùng thẻ a href để chuyển file thực sự -->
+            <a href="index.html" class="nav-btn active"><i class="fa-solid fa-house"></i> Trang chủ</a>
+            <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
+        </div>
+        <div class="nav-right">
+            <button class="icon-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <div class="user-avatar" id="nav-avatar"><i class="fa-solid fa-user"></i></div>
+        </div>
+    </header>
+
+    <main id="main-container">
+        <div class="dashboard-layout">
+            <!-- CỘT TRÁI -->
+            <aside class="sidebar-left">
+                <div class="card activity-card">
+                    <div class="card-header">
+                        <h3>Hoạt động học tập</h3>
+                        <i class="fa-solid fa-gear" style="color: #888; cursor: pointer;"></i>
+                    </div>
+                    
+                    <!-- Phần Ngọn lửa và Thống kê -->
+                    <div class="stats-row">
+                        <div class="stat-box">
+                            <div class="stat-value"><i class="fa-solid fa-fire" style="color: #ff9800;"></i> 0</div>
+                            <div class="stat-label">Chuỗi hiện tại</div>
+                        </div>
+                        <div class="divider-vertical"></div>
+                        <div class="stat-box">
+                            <div class="stat-value">0/10</div>
+                            <div class="stat-label">Từ hôm nay</div>
+                        </div>
+                    </div>
+
+                    <!-- Phần Biểu đồ dự báo -->
+                    <div class="chart-area">
+                        <p class="chart-title">Dự báo ôn tập 7 ngày tới</p>
+                        <div class="bars">
+                            <div class="bar-col"><div class="bar active" style="height: 40px;"></div><span>Th3</span></div>
+                            <div class="bar-col"><div class="bar" style="height: 0px;"></div><span>Th4</span></div>
+                            <div class="bar-col"><div class="bar" style="height: 0px;"></div><span>Th5</span></div>
+                            <div class="bar-col"><div class="bar" style="height: 0px;"></div><span>Th6</span></div>
+                            <div class="bar-col"><div class="bar" style="height: 0px;"></div><span>Th7</span></div>
+                            <div class="bar-col"><div class="bar" style="height: 0px;"></div><span>CN</span></div>
+                            <div class="bar-col"><div class="bar" style="height: 0px;"></div><span>Th2</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Các nút hành động phụ -->
+                    <div class="action-buttons">
+                        <button class="btn btn-black w-100 mb-10"><i class="fa-solid fa-calendar-days"></i> Lặp lại ngắt quãng</button>
+                        <div class="btn-group">
+                            <!-- Nút tạo bộ thẻ này sẽ được gắn link sang trang tạo sau -->
+                            <a href="create.html" class="btn btn-black" style="text-decoration: none; display: block; text-align: center;"><i class="fa-solid fa-plus"></i> Tạo Bộ thẻ</a>
+                            <button class="btn btn-outline"><i class="fa-regular fa-map"></i> Tạo lộ trình</button>
+                        </div>
+                        <button class="btn btn-yellow w-100 mt-10"><i class="fa-solid fa-star"></i> Nâng cấp Premium</button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- CỘT PHẢI -->
+            <section class="content-right">
+                <div class="section-header">
+                    <h3>Thư viện cộng đồng (Mới nhất)</h3>
+                </div>
+                <!-- Vùng chứa danh sách thẻ -->
+                <div class="card-grid" id="learning-sets-grid"></div>
+            </section>
+        </div>
+    </main>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

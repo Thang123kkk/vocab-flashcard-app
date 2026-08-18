@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Học Flashcard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="study"> <!-- JS nhận diện trang này -->
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="logo">📚</div>
+            <span id="study-set-title" style="font-weight: bold; margin-left: 20px;">Đang tải...</span>
+        </div>
+        <div class="nav-right" style="display: flex; align-items: center; gap: 10px;">
+            <!-- Nút chỉnh sửa mặc định ẩn, chỉ hiện nếu là chủ sở hữu -->
+            <a href="#" id="btn-edit-set" class="btn btn-outline" style="display: none; text-decoration: none;"><i class="fa-solid fa-pen-to-square"></i> Chỉnh sửa</a>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-xmark"></i> Thoát</a>
+        </div>
+    </header>
+
+    <main id="main-container">
+        
+        <!-- KHU VỰC THẺ 3D -->
+        <div class="flashcard-container" id="fc-container">
+            <div class="flashcard" id="flashcard">
+                
+                <!-- Mặt trước -->
+                <div class="card-face card-front">
+                    <div class="fc-term" id="fc-front-word">...</div>
+                    <div class="fc-pron" id="fc-front-pron">...</div>
+                    <button class="btn-audio" id="btn-play-audio" title="Phát âm"><i class="fa-solid fa-volume-high"></i></button>
+                </div>
+                
+                <!-- Mặt sau -->
+                <div class="card-face card-back">
+                    <div class="fc-def" id="fc-back-def">...</div>
+                    <div class="fc-syn" id="fc-back-syn">...</div>
+                    <div class="fc-ex" id="fc-back-ex">...</div>
+                </div>
+
+            </div>
+        </div>
+
+        <p style="text-align: center; color: #777; font-size: 13px; margin-bottom: 15px;">
+            Phím tắt: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> chuyển thẻ &bull; <kbd>Space</kbd> lật thẻ &bull; <kbd>1</kbd> Chưa nhớ &bull; <kbd>2</kbd> Đã thuộc
+        </p>
+
+        <!-- NÚT ĐIỀU KHIỂN & CHẤM ĐIỂM -->
+        <div class="study-controls">
+            <button class="ctrl-btn" id="btn-prev"><i class="fa-solid fa-arrow-left"></i></button>
+            
+            <button class="ctrl-btn btn-fail" id="btn-fail" title="Chưa nhớ (Phím 1)"><i class="fa-solid fa-xmark"></i></button>
+            <div class="card-counter" id="fc-counter">0 / 0</div>
+            <button class="ctrl-btn btn-pass" id="btn-pass" title="Đã thuộc (Phím 2)"><i class="fa-solid fa-check"></i></button>
+            
+            <button class="ctrl-btn" id="btn-next"><i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+
+        <!-- DANH SÁCH TỪ VỰNG CHI TIẾT BÊN DƯỚI -->
+        <h3 style="margin-bottom: 15px;">Danh sách thẻ</h3>
+        <div id="word-list-container"></div>
+
+    </main>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

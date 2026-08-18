@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo bộ thẻ mới - Vocab App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="create"> <!-- JS sẽ nhận diện trang này -->
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="logo">📚</div>
+            <a href="index.html" class="nav-btn"><i class="fa-solid fa-house"></i> Trang chủ</a>
+            <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
+        </div>
+        <div class="nav-right">
+            <div class="user-avatar" id="nav-avatar"><i class="fa-solid fa-user"></i></div>
+        </div>
+    </header>
+
+    <main id="main-container" style="max-width: 900px;"> <!-- Thu hẹp lại cho giống ảnh -->
+        
+        <!-- HEADER CỦA TRANG TẠO -->
+        <div class="create-header">
+            <h2 id="page-title">Tạo bộ thẻ mới</h2>
+            <div class="create-actions">
+                <button class="btn btn-outline" id="btn-open-import"><i class="fa-solid fa-file-import"></i> Nhập</button>
+                <div class="toggle-wrapper">
+                    <span style="font-size: 14px; font-weight: bold; margin-right: 10px;">Công khai</span>
+                    <label class="switch">
+                        <input type="checkbox" id="set-public">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <a href="index.html" class="btn btn-outline" style="text-decoration: none;">Hủy</a>
+                <button class="btn btn-black" id="btn-save-set">Tạo</button>
+            </div>
+        </div>
+
+        <!-- NÚT AI MAGIC -->
+        <button class="ai-magic-btn">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Yêu cầu AI tạo từ vựng
+        </button>
+
+        <!-- THÔNG TIN BỘ THẺ -->
+        <div class="set-meta-info">
+            <label style="font-weight: bold; font-size: 14px; margin-bottom: 5px; display: block;">Tiêu đề</label>
+            <input type="text" id="set-title" placeholder="Thêm tiêu đề..." class="input-light title-input">
+            
+            <label style="font-weight: bold; font-size: 14px; margin-bottom: 5px; margin-top: 15px; display: block;">Mô tả (Tùy chọn)</label>
+            <textarea id="set-desc" placeholder="Thêm mô tả cho bộ thẻ của bạn..." class="input-light desc-input"></textarea>
+        </div>
+
+        <!-- DANH SÁCH CÁC THẺ TỪ VỰNG -->
+        <div id="vocab-cards-container">
+            <!-- JS sẽ tự động vẽ các thẻ (1, 2, 3...) vào đây -->
+        </div>
+
+        <!-- NÚT THÊM THẺ -->
+        <div class="add-card-wrapper">
+            <button class="btn-add-card" id="btn-add-card"><i class="fa-solid fa-plus"></i> Thêm thẻ</button>
+        </div>
+        <!-- BẢNG POPUP NHẬP DỮ LIỆU HÀNG LOẠT -->
+        <div id="import-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Nhập</h3>
+                    <button id="btn-close-import" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <p style="color: #555; font-size: 14px; margin-bottom: 15px;">Chép và dán dữ liệu từ Word, Excel, Google Docs, v.v.</p>
+                
+                <textarea id="import-textarea" placeholder="Từ 1&#9;Định nghĩa 1&#9;Phát âm (nếu có)...&#10;Từ 2&#9;Định nghĩa 2&#9;Phát âm (nếu có)..."></textarea>
+                
+                <div class="import-options">
+                    <div class="option-group">
+                        <label>Giữa thuật ngữ và định nghĩa</label>
+                        <div><input type="radio" name="term-sep" value="tab" checked> Tab</div>
+                        <div><input type="radio" name="term-sep" value="comma"> Phẩy</div>
+                    </div>
+                    <div class="option-group">
+                        <label>Giữa các thẻ</label>
+                        <div><input type="radio" name="card-sep" value="newline" checked> Dòng mới</div>
+                        <div><input type="radio" name="card-sep" value="semicolon"> Chấm phẩy</div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button class="btn btn-outline" id="btn-cancel-import">Hủy nhập</button>
+                    <button class="btn btn-black" id="btn-process-import">Nhập</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

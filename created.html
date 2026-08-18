@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đã tạo - Vocab App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="created"> <!-- Dấu hiệu nhận biết trang đã tạo -->
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="logo">📚</div>
+            <a href="index.html" class="nav-btn"><i class="fa-solid fa-house"></i> Trang chủ</a>
+            <a href="created.html" class="nav-btn active"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
+        </div>
+        <div class="nav-right">
+            <button class="icon-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <div class="user-avatar" id="nav-avatar"><i class="fa-solid fa-user"></i></div>
+        </div>
+    </header>
+
+    <main id="main-container">
+        <!-- Bỏ cột trái đi để màn hình rộng hơn cho việc quản lý thẻ của mình -->
+        <section class="content-right" style="width: 100%;">
+            <div class="section-header">
+                <h3>Bộ thẻ do tôi tạo</h3>
+                <a href="create.html" class="btn btn-black" style="text-decoration: none; display: block; text-align: center;"><i class="fa-solid fa-plus"></i> Tạo Bộ thẻ</a>
+            </div>
+            
+            <div class="card-grid" id="learning-sets-grid"></div>
+        </section>
+    </main>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
