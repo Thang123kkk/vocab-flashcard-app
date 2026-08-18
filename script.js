@@ -22,7 +22,34 @@ const avatarBtn = document.getElementById('nav-avatar');
 const grid = document.getElementById('learning-sets-grid');
 
 // XÁC ĐỊNH XEM TRÌNH DUYỆT ĐANG MỞ FILE NÀO
-const currentPage = document.body.getAttribute('data-page'); 
+const currentPage = document.body.getAttribute('data-page');
+
+// ============ RESPONSIVE: HAMBURGER MENU ============
+const hamburgerBtn = document.getElementById('hamburger-toggle');
+const sidebar = document.querySelector('.sidebar-left');
+
+if (hamburgerBtn && sidebar) {
+    hamburgerBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+        document.body.classList.toggle('sidebar-open');
+    });
+
+    // Close sidebar when clicking on nav links
+    document.querySelectorAll('.nav-btn').forEach(link => {
+        link.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        });
+    });
+
+    // Close sidebar when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!sidebar.contains(e.target) && !hamburgerBtn.contains(e.target)) {
+            sidebar.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        }
+    });
+} 
 
 // 1. XỬ LÝ ĐĂNG NHẬP / ĐĂNG XUẤT (Bản an toàn)
 onAuthStateChanged(auth, (user) => {
