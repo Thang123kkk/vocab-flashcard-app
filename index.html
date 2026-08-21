@@ -19,6 +19,7 @@
             <!-- Dùng thẻ a href để chuyển file thực sự -->
             <a href="index.html" class="nav-btn active"><i class="fa-solid fa-house"></i> Trang chủ</a>
             <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
+            <button class="nav-btn" id="btn-open-guide" type="button" aria-label="Hướng dẫn sử dụng"><i class="fa-regular fa-circle-question"></i> Hướng dẫn</button>
         </div>
         <div class="nav-right">
             <button class="icon-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
@@ -51,15 +52,14 @@
 
                     <!-- Các nút hành động phụ -->
                     <div class="action-buttons">
-                        <a href="repetition.html" class="btn btn-black w-100 mb-10" style="text-decoration: none; display: block; text-align: center;">
+                        <a href="repetition.html" class="btn btn-black w-100 mb-10" data-tooltip="Nơi ôn tập hằng ngày, gồm các từ bạn đã học nhưng chưa nhớ và thuộc." style="text-decoration: none; display: block; text-align: center;">
                             <i class="fa-solid fa-calendar-days"></i> Lặp lại ngắt quãng
                         </a>
                         <div class="btn-group">
                             <!-- Nút tạo bộ thẻ này sẽ được gắn link sang trang tạo sau -->
-                            <a href="create.html" class="btn btn-black w-100" style="text-decoration: none; display: block; text-align: center; padding: 15px 20px; font-size: 16px;"><i class="fa-solid fa-plus"></i> Tạo Bộ thẻ</a>
+                            <a href="create.html" class="btn btn-black w-100" data-tooltip="Tạo các bộ từ vựng cá nhân của riêng bạn để học theo mục tiêu." style="text-decoration: none; display: block; text-align: center; padding: 15px 20px; font-size: 16px;"><i class="fa-solid fa-plus"></i> Tạo Bộ thẻ</a>
                             <button class="btn btn-outline" style="display: none;"><i class="fa-regular fa-map"></i> Tạo lộ trình</button>
                         </div>
-                        <button class="btn btn-yellow w-100 mt-10"><i class="fa-solid fa-star"></i> Nâng cấp Premium</button>
                     </div>
                 </div>
             </aside>
@@ -92,6 +92,19 @@
                         <i class="fa-solid fa-trash-can"></i> Xóa vĩnh viễn Tài khoản (Bao gồm các Bộ thẻ)
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <div id="guide-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+            <div class="modal-content guide-modal-content">
+                <div class="modal-header"><div><p class="guide-eyebrow">Bắt đầu trong vài phút</p><h3 id="guide-title">Học từ vựng theo cách của bạn</h3></div><button id="btn-close-guide" class="close-btn" type="button" aria-label="Đóng hướng dẫn"><i class="fa-solid fa-xmark"></i></button></div>
+                <p class="guide-intro">Tạo từ vựng cá nhân, học bằng flashcard và ôn lại vào lúc cần thiết.</p>
+                <div class="guide-steps">
+                    <article class="guide-step"><span class="guide-icon guide-icon-purple"><i class="fa-solid fa-layer-group"></i></span><div><h4>1. Tạo bộ thẻ cá nhân</h4><p>Tạo một chủ đề như IELTS, công việc hoặc từ mới mỗi ngày. Bạn có thể nhập từng từ hoặc dán từ Excel/Google Docs.</p></div></article>
+                    <article class="guide-step"><span class="guide-icon guide-icon-blue"><i class="fa-solid fa-clone"></i></span><div><h4>2. Học bằng Flashcard</h4><p>Lật thẻ để kiểm tra trí nhớ. Đánh dấu “Đã thuộc” hoặc “Chưa nhớ” sau mỗi từ.</p></div></article>
+                    <article class="guide-step"><span class="guide-icon guide-icon-orange"><i class="fa-solid fa-clock-rotate-left"></i></span><div><h4>3. Ôn tập thông minh</h4><p>Các từ chưa chắc sẽ quay lại vào mục Lặp lại ngắt quãng để bạn ôn trước khi quên.</p></div></article>
+                </div>
+                <div class="guide-footer"><a class="btn btn-black" href="create.html"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ đầu tiên</a><button id="btn-guide-done" class="btn btn-outline" type="button">Đã hiểu</button></div>
             </div>
         </div>
     </main>

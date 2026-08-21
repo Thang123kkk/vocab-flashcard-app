@@ -252,6 +252,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     color: var(--gray-500);
 }
 
+/* Chú giải ngắn cho các hành động chính trên trang chủ. */
+[data-tooltip] { position: relative; }
+[data-tooltip]::after { content: attr(data-tooltip); position: absolute; z-index: 30; bottom: calc(100% + 10px); left: 50%; width: max-content; max-width: 260px; padding: 9px 11px; border-radius: 9px; color: #fff; background: #1f2937; box-shadow: 0 8px 18px rgba(15,23,42,.18); font-size: 12px; font-weight: 500; line-height: 1.4; opacity: 0; pointer-events: none; transform: translate(-50%, 4px); transition: opacity .18s ease, transform .18s ease; }
+[data-tooltip]::before { content: ''; position: absolute; z-index: 31; bottom: calc(100% + 5px); left: 50%; border: 5px solid transparent; border-top-color: #1f2937; opacity: 0; transform: translateX(-50%); transition: opacity .18s ease; }
+[data-tooltip]:hover::after, [data-tooltip]:hover::before, [data-tooltip]:focus-visible::after, [data-tooltip]:focus-visible::before { opacity: 1; transform: translate(-50%, 0); }
+[data-tooltip]:hover::before, [data-tooltip]:focus-visible::before { transform: translateX(-50%); }
+
 .empty-state i {
     font-size: 64px;
     color: var(--gray-300);
@@ -531,6 +538,9 @@ input:checked + .slider:before { transform: translateX(20px); }
 .option-group div { margin-bottom: 8px; font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 15px; }
 
+/* Hướng dẫn sử dụng */
+.guide-modal-content { max-width: 620px; }.guide-eyebrow { margin-bottom: 2px; color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }.guide-intro { margin: 8px 0 22px; color: var(--gray-600); }.guide-steps { display: grid; gap: 12px; }.guide-step { display: flex; align-items: flex-start; gap: 14px; padding: 14px; border: 1px solid #e8edf5; border-radius: 14px; background: #fafbff; }.guide-step h4 { color: var(--gray-900); font-size: 15px; }.guide-step p { margin-top: 3px; color: var(--gray-600); font-size: 13px; line-height: 1.5; }.guide-icon { display: grid; flex: 0 0 38px; width: 38px; height: 38px; place-items: center; border-radius: 11px; }.guide-icon-purple { color: #6d28d9; background: #ede9fe; }.guide-icon-blue { color: #2563eb; background: #dbeafe; }.guide-icon-orange { color: #c2410c; background: #ffedd5; }.guide-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }.guide-footer a { text-decoration: none; }
+
 
 
 /* ================= TRANG LẶP LẠI NGẮT QUÃNG (SRS) ================= */
@@ -553,6 +563,8 @@ input:checked + .slider:before { transform: translateX(20px); }
 .btn-srs-4:hover { background: #e8f5e9; }
 .btn-srs-5 { border-color: #bbdefb; color: #2196f3; } /* Dễ - Xanh dương */
 .btn-srs-5:hover { background: #e3f2fd; }
+.btn-srs:disabled { cursor: wait; opacity: .62; }.btn-srs.is-processing { color: #fff; background: var(--primary); border-color: var(--primary); box-shadow: 0 0 0 5px rgba(99,102,241,.14); transform: translateY(-3px) scale(1.04); animation: srsButtonPulse .7s ease-in-out infinite alternate; }.srs-feedback { min-height: 22px; margin: -25px auto 8px; color: var(--gray-500); font-size: 13px; font-weight: 600; text-align: center; opacity: 0; transform: translateY(-4px); transition: opacity .2s ease, transform .2s ease; }.srs-feedback.is-visible { opacity: 1; transform: none; }.flashcard-container.srs-card-advance { animation: srsCardAdvance .4s cubic-bezier(.2,.8,.2,1); }
+@keyframes srsButtonPulse { from { box-shadow: 0 0 0 3px rgba(99,102,241,.12); } to { box-shadow: 0 0 0 8px rgba(99,102,241,0); } } @keyframes srsCardAdvance { 0% { opacity: .4; transform: translateX(14px) scale(.985); } 100% { opacity: 1; transform: none; } }
 
 
 

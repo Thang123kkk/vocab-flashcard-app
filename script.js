@@ -237,6 +237,15 @@ if (avatarBtn) {
 if (currentPage === 'home') {
     const btnSettings = document.getElementById('btn-open-settings');
     const settingsModal = document.getElementById('settings-modal');
+    const guideModal = document.getElementById('guide-modal');
+    const openGuide = document.getElementById('btn-open-guide');
+
+    if (guideModal && openGuide) {
+        const closeGuide = () => { guideModal.style.display = 'none'; };
+        openGuide.addEventListener('click', () => { guideModal.style.display = 'flex'; });
+        document.getElementById('btn-close-guide')?.addEventListener('click', closeGuide);
+        document.getElementById('btn-guide-done')?.addEventListener('click', closeGuide);
+    }
     
     if (btnSettings && settingsModal) {
         btnSettings.addEventListener('click', () => settingsModal.style.display = 'flex');
@@ -1007,9 +1016,11 @@ if (currentPage === 'repetition') {
     let currentCardIndex = 0;
 
     const flashcard = document.getElementById('flashcard');
+    const flashcardContainer = document.getElementById('fc-container');
     const srsControls = document.getElementById('srs-controls-panel');
     const counterDisplay = document.getElementById('srs-total-count');
     const srsListContainer = document.getElementById('srs-word-list-container'); 
+    const srsFeedback = document.getElementById('srs-feedback');
 
     // Hàm gọi loa
     document.getElementById('btn-play-audio').addEventListener('click', (e) => {
@@ -1189,8 +1200,16 @@ if (currentPage === 'repetition') {
     }
 
     // 4. XỬ LÝ KHI ĐÁNH GIÁ THẺ
-    async function processEvaluation(quality) {
+    async function processEvaluation(quality, selectedButton = null) {
         if (currentCardIndex >= dueCards.length) return;
+        const ratingLabels = { 0: 'Quên', 3: 'Khó', 4: 'Tốt', 5: 'Dễ' };
+        const button = selectedButton || document.getElementById(`btn-sm2-${quality}`);
+        document.querySelectorAll('.btn-srs').forEach((btn) => { btn.disabled = true; });
+        button?.classList.add('is-processing');
+        if (srsFeedback) {
+            srsFeedback.textContent = `Đã chọn “${ratingLabels[quality]}” — đang lưu đánh giá…`;
+            srsFeedback.classList.add('is-visible');
+        }
         const currentData = dueCards[currentCardIndex];
         const newProgress = calculateSM2(quality, currentData.progress);
         
@@ -1212,17 +1231,30 @@ if (currentPage === 'repetition') {
             await updateDoc(progressRef, { learnedCards: allLearnedCards });
         } catch (error) {
             console.error("Lỗi lưu SM-2:", error);
+            if (srsFeedback) srsFeedback.textContent = 'Chưa thể lưu đánh giá. Vui lòng thử lại.';
         }
 
         currentCardIndex++;
         updateUI();
         renderSRSList(); // Chạy lại hàm vẽ để thay đổi nhãn đỏ thành xanh
+        flashcardContainer?.classList.remove('srs-card-advance');
+        void flashcardContainer?.offsetWidth;
+        flashcardContainer?.classList.add('srs-card-advance');
+        if (srsFeedback) {
+            srsFeedback.textContent = currentCardIndex < dueCards.length
+                ? `Đã ghi nhận “${ratingLabels[quality]}”. Hãy tiếp tục với từ tiếp theo.`
+                : 'Đã ghi nhận đánh giá. Bạn đã hoàn thành lượt ôn hôm nay!';
+        }
+        document.querySelectorAll('.btn-srs').forEach((btn) => {
+            btn.disabled = false;
+            btn.classList.remove('is-processing');
+        });
     }
 
-    document.getElementById('btn-sm2-0').addEventListener('click', () => processEvaluation(0));
-    document.getElementById('btn-sm2-3').addEventListener('click', () => processEvaluation(3));
-    document.getElementById('btn-sm2-4').addEventListener('click', () => processEvaluation(4));
-    document.getElementById('btn-sm2-5').addEventListener('click', () => processEvaluation(5));
+    document.getElementById('btn-sm2-0').addEventListener('click', (event) => processEvaluation(0, event.currentTarget));
+    document.getElementById('btn-sm2-3').addEventListener('click', (event) => processEvaluation(3, event.currentTarget));
+    document.getElementById('btn-sm2-4').addEventListener('click', (event) => processEvaluation(4, event.currentTarget));
+    document.getElementById('btn-sm2-5').addEventListener('click', (event) => processEvaluation(5, event.currentTarget));
 
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' || e.code === 'Enter') { 
@@ -1451,7 +1483,7 @@ if (currentPage === 'quiz') {
             
             await setDoc(progressRef, { userId: currentUser.uid, setId: setId, learnedCards: allCards }, { merge: true });
             
-            btnElement.innerHTML = statusType === 'learned' ? '<i class="fa-solid fa-check-double"></i> Đã lưu vào Đã thuộc' : '<i class="fa-solid fa-check-double"></i> Đã đưa vào SRS';
+            btnElement.innerHTML = statusType === 'learned' ? '<i class="fa-solid fa-check-double"></i> Đã lưu vào Đã thuộc' : '<i class="fa-solid fa-check-double"></i> Đã đưa vào Lặp lại ngắt quảng';
             btnFail.disabled = true; btnPass.disabled = true; // Khóa nút chống bấm 2 lần
         } catch (error) { console.error("Lỗi:", error); }
     }
