@@ -20,6 +20,7 @@
         </div>
         <div class="nav-right" style="display: flex; align-items: center; gap: 10px;">
             <!-- Nút chỉnh sửa mặc định ẩn, chỉ hiện nếu là chủ sở hữu -->
+             <button id="btn-reset-progress" class="btn btn-outline" style="display: none; color: #f44336; border-color: #f44336;"><i class="fa-solid fa-rotate-left"></i> Reset Tiến độ</button>
             <a href="#" id="btn-edit-set" class="btn btn-outline" style="display: none; text-decoration: none;"><i class="fa-solid fa-pen-to-square"></i> Chỉnh sửa</a>
             <a href="index.html" class="btn-back"><i class="fa-solid fa-xmark"></i> Thoát</a>
         </div>
@@ -63,9 +64,56 @@
             <button class="ctrl-btn" id="btn-next"><i class="fa-solid fa-arrow-right"></i></button>
         </div>
 
+        <!-- NÚT MỞ BẢNG CÀI ĐẶT QUIZ -->
+        <div style="text-align: center; margin-top: 20px; margin-bottom: 30px;">
+            <button id="btn-open-quiz-setup" class="btn btn-black" style="padding: 12px 30px; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                <i class="fa-solid fa-gamepad"></i> Làm bài Trắc nghiệm
+            </button>
+        </div>
+
         <!-- DANH SÁCH TỪ VỰNG CHI TIẾT BÊN DƯỚI -->
         <h3 style="margin-bottom: 15px;">Danh sách thẻ</h3>
         <div id="word-list-container"></div>
+
+
+        <!-- BẢNG CÀI ĐẶT QUIZ -->
+        <div id="quiz-setup-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h3>Cài đặt bài Test</h3>
+                    <button id="btn-close-quiz" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="field-group" style="margin-top: 15px;">
+                    <label>Lọc từ vựng</label>
+                    <select id="quiz-filter" class="input-light" style="width: 100%; border: 1px solid #ccc;">
+                        <option value="all">Tất cả từ vựng</option>
+                        <option value="unlearned">Chỉ từ Chưa thuộc</option>
+                        <option value="learned">Chỉ từ Đã thuộc</option>
+                    </select>
+                </div>
+
+                <div class="field-group" style="margin-top: 15px;">
+                    <label>Chế độ hỏi</label>
+                    <select id="quiz-mode" class="input-light" style="width: 100%; border: 1px solid #ccc;">
+                        <option value="en-vi">Tiếng Anh ➔ Tiếng Việt</option>
+                        <option value="vi-en">Tiếng Việt ➔ Tiếng Anh</option>
+                        <option value="mixed">Xáo trộn ngẫu nhiên</option>
+                    </select>
+                </div>
+
+                <div class="field-group" style="margin-top: 15px;">
+                    <label>Số lượng câu hỏi</label>
+                    <select id="quiz-limit" class="input-light" style="width: 100%; border: 1px solid #ccc;">
+                        <option value="10">10 câu</option>
+                        <option value="20">20 câu</option>
+                        <option value="all">Tất cả</option>
+                    </select>
+                </div>
+                
+                <button id="btn-start-quiz" class="btn btn-black w-100" style="margin-top: 25px; padding: 15px;">Bắt đầu thi</button>
+            </div>
+        </div>
 
     </main>
 

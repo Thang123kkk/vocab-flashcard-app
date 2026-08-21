@@ -140,14 +140,17 @@ body {
 .stat-value { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
 .stat-label { font-size: 12px; color: #777; }
 
-/* Biểu đồ giả */
-.chart-area { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+/* Biểu đồ Dự báo SRS */
+.chart-area { margin-bottom: 20px; padding-bottom: 20px; }
 .chart-title { font-size: 12px; color: #777; margin-bottom: 10px; }
-.bars { display: flex; justify-content: space-between; align-items: flex-end; height: 50px; }
-.bar-col { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.bar { width: 30px; background-color: #eee; border-radius: 4px; }
+.bars { display: flex; justify-content: space-between; align-items: flex-end; height: 80px; }
+.bar-col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; height: 100%; width: 100%; }
+.bar-count { font-size: 10px; color: #777; min-height: 12px; }
+.bar { width: 80%; max-width: 35px; background-color: #eee; border-radius: 4px 4px 0 0; transition: height 0.3s ease; }
 .bar.active { background-color: #ff6b00; }
-.bar-col span { font-size: 10px; color: #999; }
+.day-label { font-size: 10px; color: #777; border-top: 2px solid #555; padding-top: 4px; width: 90%; text-align: center; }
+.bar-col.today .day-label { color: #ff6b00; border-top-color: #ff6b00; }
+.bar-col.today .bar-count { color: #ff6b00; font-weight: bold; }
 
 /* Nút bấm (Buttons) */
 .btn {
@@ -498,5 +501,41 @@ input:checked + .slider:before { transform: translateX(20px); }
 .option-group label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 12px; color: #111; }
 .option-group div { margin-bottom: 8px; font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 15px; }
+
+
+
+/* ================= TRANG LẶP LẠI NGẮT QUÃNG (SRS) ================= */
+.srs-controls { display: flex; flex-direction: column; align-items: center; margin-bottom: 40px; }
+.btn-group-srs { display: flex; gap: 15px; }
+
+.btn-srs {
+    width: 80px; height: 60px; border-radius: 12px; border: 2px solid;
+    background: #fff; cursor: pointer; font-weight: bold; font-size: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: 0.2s;
+}
+.btn-srs span { font-size: 10px; font-weight: normal; margin-top: 2px; }
+
+.btn-srs-0 { border-color: #ffcdd2; color: #f44336; } /* Quên - Đỏ */
+.btn-srs-0:hover { background: #ffebee; }
+.btn-srs-3 { border-color: #ffe0b2; color: #ff9800; } /* Khó - Cam */
+.btn-srs-3:hover { background: #fff3e0; }
+.btn-srs-4 { border-color: #c8e6c9; color: #4caf50; } /* Tốt - Xanh lá */
+.btn-srs-4:hover { background: #e8f5e9; }
+.btn-srs-5 { border-color: #bbdefb; color: #2196f3; } /* Dễ - Xanh dương */
+.btn-srs-5:hover { background: #e3f2fd; }
+
+
+
+/* ================= TRẮC NGHIỆM (QUIZ) ================= */
+.quiz-option-btn {
+    background: #fff; border: 2px solid #e5e7eb; padding: 20px; border-radius: 16px;
+    font-size: 18px; font-weight: bold; color: #333; cursor: pointer;
+    transition: all 0.2s ease; outline: none;
+}
+.quiz-option-btn:hover { border-color: var(--primary); background: #f5f3ff; color: var(--primary); }
+.quiz-option-btn.correct { background: #dcfce7; border-color: #4caf50; color: #15803d; pointer-events: none; }
+.quiz-option-btn.wrong { background: #fee2e2; border-color: #ef4444; color: #b91c1c; pointer-events: none; }
+.quiz-option-btn.disabled { pointer-events: none; opacity: 0.7; }
 
 

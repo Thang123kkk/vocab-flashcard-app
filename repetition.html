@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ôn tập ngắt quãng - Vocab App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="repetition"> 
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="logo">📚</div>
+            <span style="font-weight: bold; margin-left: 20px;">Lặp lại ngắt quãng (SRS)</span>
+        </div>
+        <div class="nav-right">
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-xmark"></i> Thoát</a>
+        </div>
+    </header>
+
+    <main id="main-container">
+        <!-- BỘ ĐẾM THẺ TỔNG -->
+        <div style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #555;">
+            Số thẻ cần ôn hôm nay: <span id="srs-total-count" style="color: #ff9800; font-size: 20px;">0</span>
+        </div>
+
+        <div class="flashcard-container" id="fc-container">
+            <div class="flashcard" id="flashcard">
+                <div class="card-face card-front">
+                    <div class="fc-term" id="fc-front-word">Đang tải thẻ...</div>
+                    <div class="fc-pron" id="fc-front-pron"></div>
+                    <button class="btn-audio" id="btn-play-audio"><i class="fa-solid fa-volume-high"></i></button>
+                </div>
+                <div class="card-face card-back">
+                    <div class="fc-def" id="fc-back-def"></div>
+                    <div class="fc-syn" id="fc-back-syn"></div>
+                    <div class="fc-ex" id="fc-back-ex"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 NÚT ĐÁNH GIÁ ĐỘ NHỚ -->
+        <div class="srs-controls" style="display: none;" id="srs-controls-panel">
+            <p style="text-align: center; color: #777; font-size: 13px; width: 100%; margin-bottom: 10px;">Đánh giá độ nhớ</p>
+            <div class="btn-group-srs">
+                <button class="btn-srs btn-srs-0" id="btn-sm2-0" title="Phím 1">Quên<br><span>(Học lại)</span></button>
+                <button class="btn-srs btn-srs-3" id="btn-sm2-3" title="Phím 2">Khó<br><span>(Nhớ chậm)</span></button>
+                <button class="btn-srs btn-srs-4" id="btn-sm2-4" title="Phím 3">Tốt<br><span>(Chuẩn)</span></button>
+                <button class="btn-srs btn-srs-5" id="btn-sm2-5" title="Phím 4">Dễ<br><span>(Quá dễ)</span></button>
+            </div>
+        </div>
+        
+        <p style="text-align: center; color: #777; font-size: 13px; margin-top: 15px;">
+            Nhấn <kbd>Space</kbd> để lật thẻ trước khi đánh giá
+        </p>
+
+        <!-- DANH SÁCH TỪ ĐẾN HẠN BÊN DƯỚI -->
+        <div style="margin-top: 40px;">
+            <h3 style="margin-bottom: 15px;">Từ đến hạn</h3>
+            <div id="srs-word-list-container"></div>
+        </div>
+    </main>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
+
