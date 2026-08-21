@@ -6,52 +6,39 @@
     <title>Trắc nghiệm - Vocab App</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="responsive.css">
 </head>
-<body data-page="quiz" style="background-color: #f3f4f6;"> 
-
-    <header class="top-nav" style="background: transparent; border: none; padding: 20px;">
-        <button id="btn-quit-quiz" class="btn-back" style="border: none; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1);"><i class="fa-solid fa-xmark"></i> Thoát Quiz</button>
-        <div style="font-weight: bold; color: #555;" id="quiz-progress-text">Câu 1 / 10</div>
+<body data-page="quiz">
+    <header class="top-nav quiz-nav">
+        <button id="btn-quit-quiz" class="btn-back"><i class="fa-solid fa-xmark"></i> Thoát Quiz</button>
+        <div class="quiz-nav-progress"><span id="quiz-progress-text">Câu 1 / 10</span><div class="quiz-progress-track"><div id="quiz-progress-fill" class="quiz-progress-fill"></div></div></div>
+        <div class="quiz-score-mini" aria-label="Kết quả hiện tại"><span><i class="fa-solid fa-fire"></i> <strong id="quiz-streak">0</strong></span><span><i class="fa-solid fa-star"></i> <strong id="quiz-score-live">0</strong></span></div>
     </header>
 
-    <main id="main-container" style="max-width: 800px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;">
-        
-        <!-- MÀN HÌNH CHƠI -->
-        <div id="quiz-play-area" style="width: 100%; text-align: center;">
-            <div id="quiz-question-box" style="background: #fff; padding: 50px 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 40px;">
-                <h2 id="quiz-question-text" style="font-size: 32px; color: #111;">Đang tải...</h2>
-                <p id="quiz-question-hint" style="color: #888; margin-top: 10px; font-style: italic;"></p>
-            </div>
-            
-            <div id="quiz-options-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <!-- JS sẽ sinh 4 nút đáp án vào đây -->
-            </div>
-
-            <!-- THANH CÔNG CỤ HIỆN RA SAU KHI TRẢ LỜI -->
-            <div id="quiz-action-bar" style="display: none; margin-top: 30px; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button id="btn-quiz-fail" class="btn btn-outline" style="color: #f44336; border-color: #f44336;">
-                    <i class="fa-solid fa-clock-rotate-left"></i> Vào SRS (Chưa nhớ)
-                </button>
-                <button id="btn-quiz-pass" class="btn btn-outline" style="color: #4caf50; border-color: #4caf50;">
-                    <i class="fa-solid fa-check"></i> Đã thuộc (Bỏ qua)
-                </button>
-                <button id="btn-quiz-next" class="btn btn-black" style="padding-left: 30px; padding-right: 30px;">
-                    Câu tiếp theo <i class="fa-solid fa-arrow-right"></i>
-                </button>
-            </div>
+    <main id="main-container" class="quiz-main">
+        <div id="quiz-play-area" class="quiz-play-area">
+            <div class="quiz-context"><span id="quiz-mode-badge" class="quiz-mode-badge"><i class="fa-solid fa-language"></i> Tiếng Anh → Tiếng Việt</span><span class="quiz-keyboard-hint">Chọn nhanh bằng phím <kbd>A</kbd>–<kbd>D</kbd></span></div>
+            <section id="quiz-question-box" class="quiz-question-box" aria-live="polite">
+                <p class="quiz-question-label">Chọn đáp án chính xác</p><h1 id="quiz-question-text">Đang tải...</h1><p id="quiz-question-hint" class="quiz-question-hint"></p>
+                <button id="btn-quiz-audio" class="quiz-audio-btn" type="button" title="Nghe phát âm" aria-label="Nghe phát âm"><i class="fa-solid fa-volume-high"></i></button>
+            </section>
+            <div id="quiz-options-grid" class="quiz-options-grid" aria-label="Các đáp án"></div>
+            <section id="quiz-action-bar" class="quiz-action-bar" aria-live="polite">
+                <div id="quiz-feedback" class="quiz-feedback"></div>
+                <div class="quiz-action-buttons">
+                    <button id="btn-quiz-fail" class="btn btn-outline quiz-review-btn quiz-review-fail"><i class="fa-solid fa-clock-rotate-left"></i> Vào SRS</button>
+                    <button id="btn-quiz-pass" class="btn btn-outline quiz-review-btn quiz-review-pass"><i class="fa-solid fa-check"></i> Đã thuộc</button>
+                    <button id="btn-quiz-next" class="btn btn-black quiz-next-btn">Câu tiếp theo <i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </section>
         </div>
-
-        <!-- MÀN HÌNH KẾT QUẢ -->
-        <div id="quiz-result-area" style="display: none; width: 100%; text-align: center; background: #fff; padding: 50px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
-            <i class="fa-solid fa-trophy" style="font-size: 64px; color: #fbbc05; margin-bottom: 20px;"></i>
-            <h2 style="font-size: 32px; margin-bottom: 10px;">Hoàn thành!</h2>
-            <p style="font-size: 18px; color: #555; margin-bottom: 30px;">Bạn đã trả lời đúng <strong id="score-correct" style="color: #4caf50;">0</strong> / <span id="score-total">0</span> câu.</p>
-            <button id="btn-replay" class="btn btn-outline" style="margin-right: 15px;"><i class="fa-solid fa-rotate-right"></i> Chơi lại</button>
-            <button id="btn-back-to-study" class="btn btn-black"><i class="fa-solid fa-book-open"></i> Quay lại bộ thẻ</button>
-        </div>
-
+        <section id="quiz-result-area" class="quiz-result-area" aria-live="polite">
+            <div class="quiz-result-icon"><i class="fa-solid fa-trophy"></i></div><p class="quiz-result-eyebrow">Kết quả bài luyện tập</p><h1>Hoàn thành rồi!</h1>
+            <div class="quiz-score-ring"><span id="score-percent">0%</span><small>chính xác</small></div><p class="quiz-result-summary">Bạn trả lời đúng <strong id="score-correct">0</strong> / <span id="score-total">0</span> câu.</p>
+            <div class="quiz-result-stats"><div><i class="fa-solid fa-bullseye"></i><span>Đúng</span><strong id="result-correct">0</strong></div><div><i class="fa-solid fa-circle-xmark"></i><span>Cần ôn</span><strong id="result-incorrect">0</strong></div><div><i class="fa-solid fa-fire"></i><span>Chuỗi tốt nhất</span><strong id="result-streak">0</strong></div></div>
+            <div class="quiz-result-actions"><button id="btn-replay" class="btn btn-outline"><i class="fa-solid fa-rotate-right"></i> Chơi lại</button><button id="btn-back-to-study" class="btn btn-black"><i class="fa-solid fa-book-open"></i> Quay lại bộ thẻ</button></div>
+        </section>
     </main>
-
     <script type="module" src="script.js"></script>
 </body>
 </html>

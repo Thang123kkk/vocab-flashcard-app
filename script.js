@@ -70,6 +70,20 @@ toastStyle.textContent = `
 `;
 document.head.appendChild(toastStyle);
 
+// Đóng nhanh các hộp thoại bằng backdrop hoặc Escape để thao tác nhất quán trên mọi trang.
+document.querySelectorAll('.modal-overlay').forEach((modal) => {
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) modal.style.display = 'none';
+    });
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    document.querySelectorAll('.modal-overlay').forEach((modal) => {
+        if (modal.style.display !== 'none') modal.style.display = 'none';
+    });
+});
+
 function handleFirebaseError(error) {
     const errorMap = {
         'auth/popup-closed-by-user': 'Bạn đã đóng cửa sổ đăng nhập.',
@@ -278,7 +292,7 @@ if (currentPage === 'home') {
 // 2. TẢI VÀ VẼ LƯỚI
 async function loadSets(pageType) {
     if (!currentUser || !grid) return;
-    grid.innerHTML = '<p>Đang tải dữ liệu...</p>';
+    grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-spinner fa-spin"></i><p>Đang tải bộ thẻ...</p></div>';
 
     try {
         let q;
@@ -356,6 +370,7 @@ async function loadSets(pageType) {
         });
     } catch (error) {
         console.error("Lỗi:", error);
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-triangle-exclamation"></i><h3>Chưa thể tải bộ thẻ</h3><p>Vui lòng kiểm tra kết nối và thử lại.</p></div>';
     }
 }
 // 3. VẼ BIỂU ĐỒ DỰ BÁO 7 NGÀY (Ở TRANG CHỦ)
@@ -1248,11 +1263,23 @@ if (currentPage === 'quiz') {
     let currentQuestionIndex = 0;
     let score = 0;
     let questions = []; 
+    let currentStreak = 0;
+    let bestStreak = 0;
+    let hasAnsweredCurrentQuestion = false;
 
     const actionBar = document.getElementById('quiz-action-bar');
     const btnNext = document.getElementById('btn-quiz-next');
     const btnFail = document.getElementById('btn-quiz-fail');
     const btnPass = document.getElementById('btn-quiz-pass');
+    const feedback = document.getElementById('quiz-feedback');
+    const audioButton = document.getElementById('btn-quiz-audio');
+
+    function speakQuizWord(text) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        window.speechSynthesis.speak(utterance);
+    }
 
     // 1. TẠO ĐÁP ÁN NHIỄU
     function generateDistractors(correctWord, poolToPick) {
@@ -1339,6 +1366,7 @@ if (currentPage === 'quiz') {
         const isEnToVi = qData.mode === 'en-vi';
 
         actionBar.style.display = 'none'; // Ẩn thanh công cụ
+        hasAnsweredCurrentQuestion = false;
         
         // Reset text nút bấm
         btnFail.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> Vào SRS (Chưa nhớ)';
@@ -1347,30 +1375,53 @@ if (currentPage === 'quiz') {
         btnPass.disabled = false;
 
         document.getElementById('quiz-progress-text').textContent = `Câu ${currentQuestionIndex + 1} / ${questions.length}`;
+        document.getElementById('quiz-progress-fill').style.width = `${(currentQuestionIndex / questions.length) * 100}%`;
+        document.getElementById('quiz-score-live').textContent = score;
+        document.getElementById('quiz-streak').textContent = currentStreak;
+        document.getElementById('quiz-mode-badge').innerHTML = isEnToVi
+            ? '<i class="fa-solid fa-language"></i> Tiếng Anh → Tiếng Việt'
+            : '<i class="fa-solid fa-language"></i> Tiếng Việt → Tiếng Anh';
         document.getElementById('quiz-question-text').textContent = isEnToVi ? qData.correctWord.term : qData.correctWord.definition;
-        document.getElementById('quiz-question-hint').textContent = isEnToVi && qData.correctWord.pronunciation ? qData.correctWord.pronunciation : (qData.correctWord.type || '');
+        // Không hiển thị gợi ý trong lúc trả lời: một số bộ thẻ cũ lưu nghĩa vào
+        // trường phát âm, khiến đáp án bị lộ ngay dưới câu hỏi.
+        const questionHint = document.getElementById('quiz-question-hint');
+        questionHint.textContent = '';
+        questionHint.style.display = 'none';
+        audioButton.classList.toggle('visible', Boolean(qData.correctWord.term));
+        audioButton.onclick = () => speakQuizWord(qData.correctWord.term);
 
         const grid = document.getElementById('quiz-options-grid');
         grid.innerHTML = '';
 
-        qData.options.forEach(opt => {
+        qData.options.forEach((opt, optionIndex) => {
             const btn = document.createElement('button');
             btn.className = 'quiz-option-btn';
-            btn.textContent = isEnToVi ? opt.definition : opt.term;
+            btn.innerHTML = `<span>${isEnToVi ? opt.definition : opt.term}</span><span class="quiz-option-key">${String.fromCharCode(65 + optionIndex)}</span>`;
+            btn.dataset.optionIndex = optionIndex;
             
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.quiz-option-btn').forEach(b => b.classList.add('disabled'));
 
-                if (opt.term === qData.correctWord.term) {
+                const isCorrect = opt === qData.correctWord;
+                if (isCorrect) {
                     btn.classList.add('correct');
                     score++;
+                    currentStreak++;
+                    bestStreak = Math.max(bestStreak, currentStreak);
                 } else {
                     btn.classList.add('wrong');
+                    currentStreak = 0;
                     document.querySelectorAll('.quiz-option-btn').forEach(b => {
-                        const targetText = isEnToVi ? qData.correctWord.definition : qData.correctWord.term;
-                        if (b.textContent === targetText) b.classList.add('correct');
+                        if (Number(b.dataset.optionIndex) === qData.options.indexOf(qData.correctWord)) b.classList.add('correct');
                     });
                 }
+                hasAnsweredCurrentQuestion = true;
+                document.getElementById('quiz-score-live').textContent = score;
+                document.getElementById('quiz-streak').textContent = currentStreak;
+                feedback.className = `quiz-feedback ${isCorrect ? 'is-correct' : 'is-wrong'}`;
+                feedback.innerHTML = isCorrect
+                    ? `<i class="fa-solid fa-circle-check"></i><span><strong>Chính xác!</strong> Bạn đã chọn đúng đáp án.</span>`
+                    : `<i class="fa-solid fa-circle-xmark"></i><span><strong>Chưa chính xác.</strong> Đáp án đúng: ${isEnToVi ? qData.correctWord.definition : qData.correctWord.term}</span>`;
                 // Hiện thanh công cụ để người dùng tự bấm Next hoặc Đánh giá
                 actionBar.style.display = 'flex';
             });
@@ -1410,12 +1461,28 @@ if (currentPage === 'quiz') {
     btnPass.addEventListener('click', () => updateWordStatus('learned', btnPass));
     btnNext.addEventListener('click', () => { currentQuestionIndex++; renderQuestion(); });
 
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && hasAnsweredCurrentQuestion) {
+            event.preventDefault();
+            btnNext.click();
+            return;
+        }
+        if (hasAnsweredCurrentQuestion || event.ctrlKey || event.metaKey || event.altKey) return;
+        const choiceIndex = ['a', 'b', 'c', 'd'].indexOf(event.key.toLowerCase());
+        if (choiceIndex >= 0) document.querySelector(`.quiz-option-btn[data-option-index="${choiceIndex}"]`)?.click();
+    });
+
     // 5. HIỂN THỊ KẾT QUẢ
     function showResult() {
         document.getElementById('quiz-play-area').style.display = 'none';
         document.getElementById('quiz-result-area').style.display = 'block';
         document.getElementById('score-correct').textContent = score;
         document.getElementById('score-total').textContent = questions.length;
+        document.getElementById('score-percent').textContent = `${Math.round((score / questions.length) * 100)}%`;
+        document.getElementById('result-correct').textContent = score;
+        document.getElementById('result-incorrect').textContent = questions.length - score;
+        document.getElementById('result-streak').textContent = bestStreak;
+        document.getElementById('quiz-progress-fill').style.width = '100%';
     }
 
     document.getElementById('btn-quit-quiz').addEventListener('click', () => window.location.href = `study.html?id=${setId}`);

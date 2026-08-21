@@ -51,6 +51,19 @@
         display: none;
     }
 
+    /* Các trang không có sidebar vẫn phải giữ đường điều hướng hoạt động. */
+    body:not([data-page="home"]) .hamburger-btn {
+        display: none;
+    }
+
+    body:not([data-page="home"]) .nav-left .nav-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 10px;
+    }
+
+    body:not([data-page="home"]) .nav-left .nav-btn i { margin: 0; }
+
     /* Sidebar as overlay */
     .sidebar-left {
         position: fixed;
@@ -152,8 +165,8 @@
 
     /* Section header */
     .section-header {
-        flex-direction: column;
-        gap: 10px;
+        align-items: flex-start;
+        gap: 12px;
         margin-bottom: 20px;
     }
 
@@ -164,6 +177,37 @@
     .section-header .btn {
         width: 100%;
     }
+}
+
+@media (max-width: 640px) {
+    #main-container { padding: 22px 16px; }
+    .top-nav { min-height: 60px; }
+    .nav-right { gap: 8px; }
+    .nav-left { min-width: 0; }
+    .study-header, .create-header { align-items: flex-start; gap: 16px; flex-direction: column; }
+    .create-actions { width: 100%; flex-wrap: wrap; gap: 9px; }
+    .create-actions .btn { flex: 1; text-align: center; }
+    .toggle-wrapper { display: flex; align-items: center; min-height: 40px; }
+    .field-grid { grid-template-columns: 1fr; gap: 14px; }
+    .vocab-input-card { padding: 18px 16px; gap: 12px; }
+    .card-number { font-size: 15px; }
+    .flashcard-container { height: min(390px, 54vh); margin-bottom: 20px; }
+    .card-face { padding: 24px 20px; border-radius: 18px; }
+    .fc-term { font-size: clamp(28px, 9vw, 38px); }
+    .fc-def { font-size: clamp(24px, 7vw, 32px); }
+    .fc-ex { font-size: 16px; }
+    .study-controls { gap: 9px; flex-wrap: wrap; }
+    .ctrl-btn { width: 52px; height: 52px; }
+    .card-counter { width: 100%; order: 3; }
+    .btn-group-srs { width: 100%; gap: 8px; }
+    .btn-srs { flex: 1; min-width: 0; width: auto; height: 58px; font-size: 14px; }
+    .import-options { align-items: flex-start; gap: 14px; flex-direction: column; }
+    .modal-overlay { padding: 12px; }
+    .modal-content { padding: 20px; border-radius: 16px; }
+    #quiz-options-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+    #quiz-question-box, #quiz-result-area { padding: 30px 20px !important; margin-bottom: 24px !important; }
+    #quiz-question-text { font-size: 26px !important; }
+    .quiz-nav-progress { position: static; width: auto; transform: none; flex: 1; margin: 0 10px; }.quiz-score-mini { gap: 7px; font-size: 12px; }.quiz-score-mini span:last-child { display: none; }.quiz-context { align-items: flex-start; gap: 10px; flex-direction: column; }.quiz-question-box { padding: 36px 20px 62px; border-radius: 20px; }.quiz-options-grid { gap: 10px; }.quiz-option-btn { min-height: 66px; padding: 14px 48px 14px 16px; border-radius: 13px; font-size: 15px; }.quiz-action-buttons, .quiz-result-actions { flex-direction: column-reverse; }.quiz-action-buttons .btn, .quiz-result-actions .btn { width: 100%; }.quiz-result-area { border-radius: 20px; }.quiz-result-stats { gap: 7px; margin: 22px 0; }
 }
 
 /* ========== SMALL PHONE (480px trở xuống) ========== */
