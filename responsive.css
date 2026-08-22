@@ -624,9 +624,11 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body[data-page="study"] .study-navigation:not(.is-hidden),
     body[data-page="study"] .study-review-navigation.is-active {
         display: grid;
-        grid-template-columns: 46px minmax(100px, 1fr) 46px;
+        grid-template-columns: 46px 104px 46px;
         align-items: center;
-        width: min(100%, 230px);
+        justify-content: center;
+        justify-self: stretch;
+        width: 100%;
         gap: 12px;
     }
     body[data-page="study"] .study-navigation.is-hidden,
