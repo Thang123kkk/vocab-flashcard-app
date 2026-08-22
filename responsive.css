@@ -433,6 +433,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body[data-page="study"] .btn-back i { margin-right: 3px; }
     body[data-page="study"] #main-container { padding: 14px 14px calc(116px + env(safe-area-inset-bottom)); }
     body[data-page="study"] .study-session-bar { margin-bottom: 10px; font-size: 12px; }
+    body[data-page="study"] .study-session-actions { gap: 6px; }
+    body[data-page="study"] .study-card-filter-trigger { min-height: 30px; padding: 0 8px; font-size: 10px; }
+    body[data-page="study"] .study-card-filter-menu { width: min(230px, calc(100vw - 28px)); }
     body[data-page="study"] .study-mode-label { padding: 6px 9px; font-size: 10px; }
     body[data-page="study"] .flashcard-container { height: min(52svh, 420px); min-height: 300px; margin-bottom: 14px; }
     body[data-page="study"] .card-face { border-radius: 20px; }

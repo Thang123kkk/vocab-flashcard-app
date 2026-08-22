@@ -348,7 +348,27 @@ document.getElementById('admin-tabs')?.addEventListener('click', (event) => {
 });
 
 // ============ ERROR HANDLING & VALIDATION ========
+let activeToast = null;
+let activeToastTimer = null;
+
+function dismissActiveToast(immediate = false) {
+    if (!activeToast) return;
+    if (activeToastTimer) clearTimeout(activeToastTimer);
+    const toastToRemove = activeToast;
+    activeToast = null;
+    activeToastTimer = null;
+    if (immediate) {
+        toastToRemove.remove();
+        return;
+    }
+    toastToRemove.style.opacity = '0';
+    toastToRemove.style.transform = 'translateX(20px)';
+    setTimeout(() => toastToRemove.remove(), 260);
+}
+
 function showToast(message, type = 'success', duration = 3000) {
+    // Luôn chỉ giữ một thông báo để không che nội dung hoặc đè chữ lên nhau.
+    dismissActiveToast(true);
     const toast = document.createElement('div');
     const colors = {
         success: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -373,11 +393,11 @@ function showToast(message, type = 'success', duration = 3000) {
 
     toast.textContent = message;
     document.body.appendChild(toast);
+    activeToast = toast;
 
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(20px)';
-        setTimeout(() => toast.remove(), 260);
+    activeToastTimer = setTimeout(() => {
+        if (activeToast !== toast) return;
+        dismissActiveToast();
     }, duration);
 }
 
@@ -2030,14 +2050,20 @@ if (currentPage === 'study') {
     const setId = urlParams.get('id');
 
     let wordsArray = [];
+    let allWordsArray = [];
     let currentIndex = 0;
     let isRandomMode = false;
+    let activeStudyFilter = 'all';
     let studyProgress = {}; // Bây giờ sẽ lưu dạng Object SM-2 thay vì boolean
     let touchStartX = null;
     let ignoreNextFlashcardClick = false;
 
     const flashcard = document.getElementById('flashcard');
     const wordListContainer = document.getElementById('word-list-container');
+    const studyCardFilter = document.getElementById('study-card-filter');
+    const studyCardFilterTrigger = document.getElementById('study-card-filter-trigger');
+    const studyCardFilterLabel = document.getElementById('study-card-filter-label');
+    const studyCardFilterMenu = document.getElementById('study-card-filter-menu');
     const autoPlayAudio = document.getElementById('auto-play-audio');
     const autoPlayPreferenceKey = 'vocab_auto_play_audio';
     autoPlayAudio.checked = localStorage.getItem(autoPlayPreferenceKey) === 'true';
@@ -2083,17 +2109,48 @@ if (currentPage === 'study') {
         navigator.vibrate?.(8);
     }, { passive: true });
 
+    function updateStudyFilterControl() {
+        if (!studyCardFilterTrigger) return;
+        studyCardFilterTrigger.disabled = allWordsArray.length === 0;
+    }
+
+    function applyStudyFilter({ afterSourceIndex = null, shouldUpdate = true } = {}) {
+        const visibleSourceIndex = wordsArray[currentIndex]?.sourceIndex;
+        wordsArray = activeStudyFilter === 'unlearned'
+            ? allWordsArray.filter((word) => !studyProgress[word.sourceIndex])
+            : [...allWordsArray];
+
+        if (wordsArray.length > 0) {
+            let nextIndex = afterSourceIndex === null
+                ? -1
+                : wordsArray.findIndex((word) => word.sourceIndex > afterSourceIndex);
+            if (nextIndex < 0 && visibleSourceIndex !== undefined) {
+                nextIndex = wordsArray.findIndex((word) => word.sourceIndex === visibleSourceIndex);
+            }
+            currentIndex = nextIndex >= 0 ? nextIndex : Math.min(currentIndex, wordsArray.length - 1);
+        } else {
+            currentIndex = 0;
+        }
+
+        updateStudyFilterControl();
+        if (shouldUpdate) updateUI();
+    }
+
     function showStudyEmptyState(message = 'Bộ thẻ này chưa có từ vựng hợp lệ.') {
         flashcard.classList.remove('is-flipped');
         document.getElementById('fc-front-word').textContent = message;
-        document.getElementById('fc-front-pron').textContent = 'Hãy quay lại chỉnh sửa và thêm thuật ngữ cùng định nghĩa.';
+        document.getElementById('fc-front-pron').textContent = allWordsArray.length
+            ? 'Bạn có thể chuyển về “Tất cả thẻ” để xem lại tiến độ.'
+            : 'Hãy quay lại chỉnh sửa và thêm thuật ngữ cùng định nghĩa.';
         document.getElementById('fc-back-def').textContent = '';
         document.getElementById('fc-back-syn').style.display = 'none';
         document.getElementById('fc-back-ex').style.display = 'none';
         document.getElementById('fc-counter').textContent = '0 / 0';
         document.getElementById('fc-counter-progress').textContent = '0 / 0';
-        document.getElementById('word-list-count').textContent = '0/0 đã thuộc';
-        wordListContainer.innerHTML = '<p class="study-empty-message">Chưa có thẻ nào để học.</p>';
+        const learnedCount = allWordsArray.filter((word) => studyProgress[word.sourceIndex]?.status === 'learned').length;
+        document.getElementById('word-list-count').textContent = `${learnedCount}/${allWordsArray.length} đã thuộc`;
+        if (allWordsArray.length > 0) renderList();
+        else wordListContainer.innerHTML = '<p class="study-empty-message">Chưa có thẻ nào để học.</p>';
     }
 
     function updateUI() {
@@ -2143,10 +2200,10 @@ if (currentPage === 'study') {
     // --- CẬP NHẬT: VẼ LẠI DANH SÁCH BÊN DƯỚI THEO TRẠNG THÁI MỚI ---
     function renderList() {
         wordListContainer.innerHTML = '';
-        const learnedCount = Object.values(studyProgress).filter((progress) => progress?.status === 'learned').length;
-        document.getElementById('word-list-count').textContent = `${learnedCount}/${wordsArray.length} đã thuộc`;
-        wordsArray.forEach((word, index) => {
-            const progressData = studyProgress[index] || {};
+        const learnedCount = allWordsArray.filter((word) => studyProgress[word.sourceIndex]?.status === 'learned').length;
+        document.getElementById('word-list-count').textContent = `${learnedCount}/${allWordsArray.length} đã thuộc`;
+        allWordsArray.forEach((word) => {
+            const progressData = studyProgress[word.sourceIndex] || {};
             const isLearned = progressData.status === 'learned';
             const isReviewing = progressData.status === 'reviewing';
             
@@ -2204,8 +2261,10 @@ if (currentPage === 'study') {
                     return;
                 }
                 document.getElementById('study-set-title').textContent = data.title;
-                wordsArray = normalizeVocabularyWords(data.words);
+                allWordsArray = normalizeVocabularyWords(data.words)
+                    .map((word, sourceIndex) => ({ ...word, sourceIndex }));
                 currentIndex = 0;
+                applyStudyFilter({ shouldUpdate: false });
                 // Hiển thị thẻ đầu tiên ngay; việc tải tiến độ không được làm chậm buổi học.
                 updateUI();
 
@@ -2243,6 +2302,7 @@ if (currentPage === 'study') {
                     }
                 }
 
+                applyStudyFilter({ shouldUpdate: false });
                 updateUI();
             } else {
                 showStudyEmptyState('Không tìm thấy bộ thẻ này.');
@@ -2256,6 +2316,39 @@ if (currentPage === 'study') {
     }
 
     const btnRandom = document.getElementById('btn-random');
+    const closeStudyFilterMenu = () => {
+        if (!studyCardFilterMenu || !studyCardFilterTrigger) return;
+        studyCardFilterMenu.hidden = true;
+        studyCardFilterTrigger.setAttribute('aria-expanded', 'false');
+    };
+    studyCardFilterTrigger?.addEventListener('click', () => {
+        const shouldOpen = studyCardFilterMenu.hidden;
+        studyCardFilterMenu.hidden = !shouldOpen;
+        studyCardFilterTrigger.setAttribute('aria-expanded', String(shouldOpen));
+    });
+    studyCardFilterMenu?.querySelectorAll('[data-study-filter]').forEach((option) => {
+        option.addEventListener('click', () => {
+            activeStudyFilter = option.dataset.studyFilter;
+            studyCardFilterLabel.textContent = option.querySelector('span')?.childNodes[0]?.textContent.trim() || 'Tất cả thẻ';
+            studyCardFilterMenu.querySelectorAll('[data-study-filter]').forEach((item) => {
+                item.classList.toggle('is-active', item === option);
+            });
+            closeStudyFilterMenu();
+            applyStudyFilter();
+            showToast(
+                activeStudyFilter === 'unlearned'
+                    ? 'Đang chỉ hiển thị những thẻ chưa học.'
+                    : 'Đang hiển thị tất cả thẻ trong bộ.',
+                'info'
+            );
+        });
+    });
+    document.addEventListener('click', (event) => {
+        if (studyCardFilter && !studyCardFilter.contains(event.target)) closeStudyFilterMenu();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeStudyFilterMenu();
+    });
     const getRandomIndex = () => {
         if (wordsArray.length < 2) return currentIndex;
         let nextIndex = currentIndex;
@@ -2301,7 +2394,8 @@ if (currentPage === 'study') {
         // Lấy chính xác thời gian hiện tại để thẻ đáo hạn ngay lập tức
         let nextDate = new Date(); 
         
-        studyProgress[currentIndex] = {
+        const sourceIndex = wordsArray[currentIndex].sourceIndex;
+        studyProgress[sourceIndex] = {
             status: 'reviewing',
             repetition: 0,
             interval: 0, // Sửa interval thành 0
@@ -2313,14 +2407,17 @@ if (currentPage === 'study') {
         if(typeof recordWordStudied === 'function') recordWordStudied(currentUser.uid);
         navigator.vibrate?.(12);
         
-        if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); } else { renderList(); }
+        if (activeStudyFilter === 'unlearned') {
+            applyStudyFilter({ afterSourceIndex: sourceIndex });
+        } else if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); } else { renderList(); }
     });
     
     document.getElementById('btn-pass').addEventListener('click', () => {
         if (!wordsArray[currentIndex]) return;
         if (!currentUser) return requestSignIn('lưu tiến độ học');
         // Nút "Đã thuộc" -> Đóng gói cất đi, không đưa vào SRS
-        studyProgress[currentIndex] = {
+        const sourceIndex = wordsArray[currentIndex].sourceIndex;
+        studyProgress[sourceIndex] = {
             status: 'learned'
         }; 
 
@@ -2328,7 +2425,9 @@ if (currentPage === 'study') {
         if(typeof recordWordStudied === 'function') recordWordStudied(currentUser.uid);
         navigator.vibrate?.(18);
         
-        if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); } else { renderList(); }
+        if (activeStudyFilter === 'unlearned') {
+            applyStudyFilter({ afterSourceIndex: sourceIndex });
+        } else if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); } else { renderList(); }
     });
 
     document.addEventListener('keydown', (e) => {

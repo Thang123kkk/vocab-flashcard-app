@@ -18,17 +18,31 @@
             <a class="logo" href="/" aria-label="Về trang chủ"><img src="/assets/brand-mark.png" alt=""></a>
             <div class="study-title-wrap"><span class="study-title-label">Đang học</span><span id="study-set-title">Đang tải...</span></div>
         </div>
-        <div class="nav-right" style="display: flex; align-items: center; gap: 10px;">
+        <div class="nav-right study-header-actions">
             <!-- Nút chỉnh sửa mặc định ẩn, chỉ hiện nếu là chủ sở hữu -->
-            <button id="btn-open-quiz-setup" class="btn btn-quiz-launch" type="button"><i class="fa-solid fa-gamepad"></i><span>Làm trắc nghiệm</span></button>
-            <button id="btn-reset-progress" class="btn btn-outline" style="display: none; color: #f44336; border-color: #f44336;"><i class="fa-solid fa-rotate-left"></i> Reset Tiến độ</button>
-            <a href="#" id="btn-edit-set" class="btn btn-outline" style="display: none; text-decoration: none;"><i class="fa-solid fa-pen-to-square"></i> Chỉnh sửa</a>
-            <a href="/" class="btn-back"><i class="fa-solid fa-xmark"></i> Thoát</a>
+            <button id="btn-open-quiz-setup" class="btn btn-quiz-launch study-header-action" type="button"><i class="fa-solid fa-gamepad"></i><span>Làm trắc nghiệm</span></button>
+            <button id="btn-reset-progress" class="btn btn-outline study-header-action study-header-reset" style="display: none;"><i class="fa-solid fa-rotate-left"></i><span>Reset Tiến độ</span></button>
+            <a href="#" id="btn-edit-set" class="btn btn-outline study-header-action" style="display: none; text-decoration: none;"><i class="fa-solid fa-pen-to-square"></i><span>Chỉnh sửa</span></a>
+            <a href="/" class="btn-back study-header-action"><i class="fa-solid fa-xmark"></i><span>Thoát</span></a>
         </div>
     </header>
 
     <main id="main-container" class="study-page">
-        <div class="study-session-bar"><span><i class="fa-solid fa-layer-group"></i> Flashcard</span><span id="study-mode-label" class="study-mode-label">Thứ tự gốc</span></div>
+        <div class="study-session-bar">
+            <span><i class="fa-solid fa-layer-group"></i> Flashcard</span>
+            <div class="study-session-actions">
+                <div class="study-card-filter" id="study-card-filter">
+                    <button class="study-card-filter-trigger" id="study-card-filter-trigger" type="button" aria-expanded="false" aria-controls="study-card-filter-menu" disabled>
+                        <i class="fa-solid fa-filter"></i><span id="study-card-filter-label">Tất cả thẻ</span><i class="fa-solid fa-chevron-down study-card-filter-chevron" aria-hidden="true"></i>
+                    </button>
+                    <div class="study-card-filter-menu" id="study-card-filter-menu" role="menu" hidden>
+                        <button type="button" class="is-active" role="menuitem" data-study-filter="all"><i class="fa-solid fa-layer-group"></i><span>Tất cả thẻ<small>Học toàn bộ bộ thẻ</small></span><i class="fa-solid fa-check"></i></button>
+                        <button type="button" role="menuitem" data-study-filter="unlearned"><i class="fa-solid fa-seedling"></i><span>Chưa học<small>Chỉ những thẻ chưa có tiến độ</small></span><i class="fa-solid fa-check"></i></button>
+                    </div>
+                </div>
+                <span id="study-mode-label" class="study-mode-label">Thứ tự gốc</span>
+            </div>
+        </div>
         
         <!-- KHU VỰC THẺ 3D -->
         <div class="flashcard-container" id="fc-container">
