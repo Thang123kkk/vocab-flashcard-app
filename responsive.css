@@ -621,14 +621,16 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body[data-page="study"] .btn-quiz-launch i,
     body[data-page="study"] .btn-back i,
     body[data-page="repetition"] .btn-srs i { margin: 0; line-height: 1; }
-    body[data-page="study"] .study-navigation,
-    body[data-page="study"] .study-review-navigation {
+    body[data-page="study"] .study-navigation:not(.is-hidden),
+    body[data-page="study"] .study-review-navigation.is-active {
         display: grid;
         grid-template-columns: 46px minmax(100px, 1fr) 46px;
         align-items: center;
         width: min(100%, 230px);
         gap: 12px;
     }
+    body[data-page="study"] .study-navigation.is-hidden,
+    body[data-page="study"] .study-review-navigation:not(.is-active) { display: none !important; }
     body[data-page="study"] .study-navigation .card-counter,
     body[data-page="study"] .study-review-navigation .card-counter {
         display: grid;
