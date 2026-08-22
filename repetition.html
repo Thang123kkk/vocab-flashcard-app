@@ -12,19 +12,17 @@
 
     <header class="top-nav">
         <div class="nav-left">
-            <div class="logo">📚</div>
-            <span style="font-weight: bold; margin-left: 20px;">Lặp lại ngắt quãng (SRS)</span>
+            <a class="logo" href="./" aria-label="Về trang chủ"><img src="assets/brand-mark.png" alt=""></a>
+            <div class="repetition-title-wrap"><span>Ôn tập thông minh</span><strong>Lặp lại ngắt quãng</strong></div>
+            <button class="nav-btn repetition-guide-btn" id="btn-open-repetition-guide" type="button"><i class="fa-regular fa-circle-question"></i> Hướng dẫn</button>
         </div>
         <div class="nav-right">
             <a href="./" class="btn-back"><i class="fa-solid fa-xmark"></i> Thoát</a>
         </div>
     </header>
 
-    <main id="main-container">
-        <!-- BỘ ĐẾM THẺ TỔNG -->
-        <div style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #555;">
-            Số thẻ cần ôn hôm nay: <span id="srs-total-count" style="color: #ff9800; font-size: 20px;">0</span>
-        </div>
+    <main id="main-container" class="repetition-page">
+        <div class="repetition-session-summary" aria-live="polite"><span><i class="fa-solid fa-clock-rotate-left"></i> Phiên ôn tập hôm nay</span><strong><b id="srs-total-count">0</b> thẻ đến hạn</strong></div>
 
         <div class="flashcard-container" id="fc-container">
             <div class="flashcard" id="flashcard">
@@ -53,16 +51,23 @@
         </div>
         <p id="srs-feedback" class="srs-feedback" aria-live="polite"></p>
         
-        <p style="text-align: center; color: #777; font-size: 13px; margin-top: 15px;">
+        <p class="srs-shortcuts">
             Nhấn <kbd>Space</kbd> để lật thẻ trước khi đánh giá
         </p>
 
-        <!-- DANH SÁCH TỪ ĐẾN HẠN BÊN DƯỚI -->
-        <div style="margin-top: 40px;">
-            <h3 style="margin-bottom: 15px;">Từ đến hạn</h3>
-            <div id="srs-word-list-container"></div>
-        </div>
+        <section class="srs-list-panel">
+            <button id="btn-toggle-srs-list" class="srs-list-toggle" type="button" aria-expanded="false" aria-controls="srs-list-content"><span class="srs-list-toggle-icon"><i class="fa-solid fa-list-check"></i></span><span><span class="srs-list-toggle-label">Kế hoạch ôn tập</span><strong>Từ đến hạn</strong><small id="srs-list-summary">Đang tải danh sách...</small></span><i class="fa-solid fa-chevron-down srs-list-chevron"></i></button>
+            <div id="srs-list-content" class="srs-list-content" hidden><div id="srs-word-list-container"></div></div>
+        </section>
     </main>
+
+    <div id="repetition-guide-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="repetition-guide-title">
+        <div class="modal-content guide-modal-content">
+            <div class="modal-header"><div><p class="guide-eyebrow">Ôn tập hiệu quả</p><h3 id="repetition-guide-title">Cách dùng Lặp lại ngắt quãng</h3></div><button id="btn-close-repetition-guide" class="close-btn" type="button" aria-label="Đóng hướng dẫn"><i class="fa-solid fa-xmark"></i></button></div>
+            <p class="guide-intro">Đánh giá chính xác sau mỗi thẻ để SuperVocab sắp lịch ôn phù hợp với trí nhớ của bạn.</p>
+            <div class="guide-steps"><article class="guide-step"><span class="guide-icon guide-icon-purple"><i class="fa-solid fa-clone"></i></span><div><h4>Lật thẻ</h4><p>Nhấn vào flashcard hoặc phím Space để xem nghĩa và ví dụ.</p></div></article><article class="guide-step"><span class="guide-icon guide-icon-blue"><i class="fa-solid fa-chart-line"></i></span><div><h4>Đánh giá độ nhớ</h4><p>Chọn Quên, Khó, Tốt hoặc Dễ theo mức độ bạn thực sự ghi nhớ.</p></div></article><article class="guide-step"><span class="guide-icon guide-icon-orange"><i class="fa-solid fa-calendar-check"></i></span><div><h4>Ôn theo lịch</h4><p>Các thẻ sẽ trở lại đúng lúc để bạn ghi nhớ lâu hơn.</p></div></article></div>
+        </div>
+    </div>
 
     <script type="module" src="script.js"></script>
 </body>

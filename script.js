@@ -20,6 +20,58 @@ const provider = new GoogleAuthProvider();
 let currentUser = null;
 const avatarBtn = document.getElementById('nav-avatar');
 const grid = document.getElementById('learning-sets-grid');
+const searchModal = document.getElementById('search-modal');
+const searchInput = document.getElementById('search-sets');
+const searchEmpty = document.getElementById('search-empty');
+
+const siteFooter = document.createElement('footer');
+siteFooter.className = 'site-footer';
+siteFooter.innerHTML = '<a class="site-footer-brand" href="./" aria-label="Về trang chủ"><img src="assets/brand-mark.png" alt=""> <strong>SuperVocab</strong></a><span>Development by Do Quang Thang</span>';
+document.body.append(siteFooter);
+
+const accountDrawer = document.createElement('aside');
+accountDrawer.id = 'account-drawer';
+accountDrawer.className = 'account-drawer';
+accountDrawer.setAttribute('aria-label', 'Tài khoản và cài đặt');
+accountDrawer.setAttribute('aria-hidden', 'true');
+accountDrawer.innerHTML = `
+    <div class="account-drawer-header"><span>Tài khoản</span><button id="btn-close-account-drawer" type="button" aria-label="Đóng bảng tài khoản"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="account-profile"><div class="account-profile-avatar" id="account-profile-avatar"><i class="fa-solid fa-user"></i></div><div><strong id="account-profile-name">Khách</strong><span id="account-profile-email">Đăng nhập để đồng bộ dữ liệu</span></div></div>
+    <div class="account-drawer-menu"><p>Hệ thống</p><button id="btn-account-settings" type="button"><i class="fa-solid fa-sliders"></i><span>Cài đặt & dữ liệu</span><i class="fa-solid fa-chevron-right menu-arrow"></i></button><a href="created.html"><i class="fa-regular fa-folder-open"></i><span>Bộ thẻ của tôi</span><i class="fa-solid fa-chevron-right menu-arrow"></i></a></div>
+    <div class="account-drawer-footer"><button id="btn-account-logout" type="button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất</button></div>
+`;
+const accountDrawerBackdrop = document.createElement('div');
+accountDrawerBackdrop.className = 'account-drawer-backdrop';
+document.body.append(accountDrawerBackdrop, accountDrawer);
+
+function closeAccountDrawer() {
+    accountDrawer.classList.remove('is-open');
+    accountDrawerBackdrop.classList.remove('is-open');
+    accountDrawer.setAttribute('aria-hidden', 'true');
+}
+
+function openAccountDrawer() {
+    if (!currentUser) return;
+    accountDrawer.classList.add('is-open');
+    accountDrawerBackdrop.classList.add('is-open');
+    accountDrawer.setAttribute('aria-hidden', 'false');
+    document.getElementById('btn-close-account-drawer')?.focus();
+}
+
+document.getElementById('btn-close-account-drawer')?.addEventListener('click', closeAccountDrawer);
+accountDrawerBackdrop.addEventListener('click', closeAccountDrawer);
+document.getElementById('btn-account-logout')?.addEventListener('click', async () => {
+    await signOut(auth);
+    closeAccountDrawer();
+});
+document.getElementById('btn-account-settings')?.addEventListener('click', () => {
+    closeAccountDrawer();
+    if (currentPage === 'home') {
+        document.getElementById('settings-modal')?.style.setProperty('display', 'flex');
+    } else {
+        window.location.href = './#settings';
+    }
+});
 
 // XÁC ĐỊNH XEM TRÌNH DUYỆT ĐANG MỞ FILE NÀO
 const currentPage = document.body.getAttribute('data-page');
@@ -61,6 +113,40 @@ function showToast(message, type = 'success', duration = 3000) {
 function showSuccess(message) { showToast(message, 'success'); }
 function showError(message) { showToast(message, 'error'); }
 
+// Dữ liệu bộ thẻ do người dùng nhập có thể chứa ký tự HTML. Luôn escape trước
+// khi đưa chúng vào template string dùng innerHTML.
+function escapeHTML(value = '') {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function applySetSearch() {
+    if (!grid || !searchInput) return;
+    const keyword = searchInput.value.trim().toLocaleLowerCase('vi-VN');
+    const cards = [...grid.querySelectorAll('.study-set-card')];
+    let visibleCount = 0;
+    cards.forEach((card) => {
+        const matches = !keyword || (card.dataset.search || '').includes(keyword);
+        card.hidden = !matches;
+        if (matches) visibleCount++;
+    });
+    if (searchEmpty) searchEmpty.hidden = !keyword || visibleCount > 0;
+}
+
+document.getElementById('btn-open-search')?.addEventListener('click', () => {
+    if (!searchModal) return;
+    searchModal.style.display = 'flex';
+    window.setTimeout(() => searchInput?.focus(), 0);
+});
+document.getElementById('btn-close-search')?.addEventListener('click', () => {
+    if (searchModal) searchModal.style.display = 'none';
+});
+searchInput?.addEventListener('input', applySetSearch);
+
 const toastStyle = document.createElement('style');
 toastStyle.textContent = `
     @keyframes toastIn {
@@ -79,6 +165,7 @@ document.querySelectorAll('.modal-overlay').forEach((modal) => {
 
 document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    closeAccountDrawer();
     document.querySelectorAll('.modal-overlay').forEach((modal) => {
         if (modal.style.display !== 'none') modal.style.display = 'none';
     });
@@ -194,9 +281,18 @@ onAuthStateChanged(auth, (user) => {
         
         // KIỂM TRA BẢO VỆ: Có nút avatar thì mới đổi hình
         if (avatarBtn) {
-            avatarBtn.innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;" alt="User">`;
-            avatarBtn.title = `Đăng xuất khỏi ${user.displayName}`;
+            avatarBtn.innerHTML = user.photoURL
+                ? `<img src="${escapeHTML(user.photoURL)}" style="width:100%; height:100%; border-radius:50%;" alt="Ảnh đại diện">`
+                : '<i class="fa-solid fa-user"></i>';
+            avatarBtn.title = 'Mở tài khoản và cài đặt';
+            avatarBtn.setAttribute('role', 'button');
+            avatarBtn.tabIndex = 0;
         }
+        document.getElementById('account-profile-name').textContent = user.displayName || 'Người học';
+        document.getElementById('account-profile-email').textContent = user.email || 'Đã đăng nhập';
+        document.getElementById('account-profile-avatar').innerHTML = user.photoURL
+            ? `<img src="${escapeHTML(user.photoURL)}" alt="">`
+            : '<i class="fa-solid fa-user"></i>';
         
         // Gọi hàm tải dữ liệu lưới nếu đang ở 2 trang này
         if (currentPage === 'home' || currentPage === 'created') {
@@ -210,6 +306,9 @@ onAuthStateChanged(auth, (user) => {
     } else {
         currentUser = null;
         if (avatarBtn) avatarBtn.innerHTML = `<i class="fa-solid fa-user"></i>`;
+        document.getElementById('account-profile-name').textContent = 'Khách';
+        document.getElementById('account-profile-email').textContent = 'Đăng nhập để đồng bộ dữ liệu';
+        document.getElementById('account-profile-avatar').innerHTML = '<i class="fa-solid fa-user"></i>';
         if (grid) {
             const emptyHTML = `
                 <div class="empty-state" style="grid-column: 1 / -1;">
@@ -227,7 +326,14 @@ onAuthStateChanged(auth, (user) => {
 if (avatarBtn) {
     avatarBtn.addEventListener('click', () => {
         if (!currentUser) signInWithPopup(auth, provider);
-        else if(confirm("Đăng xuất?")) signOut(auth);
+        else openAccountDrawer();
+    });
+    avatarBtn.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (!currentUser) signInWithPopup(auth, provider);
+            else openAccountDrawer();
+        }
     });
 }
 
@@ -235,7 +341,6 @@ if (avatarBtn) {
 // LOGIC RESET DỮ LIỆU (TRANG CHỦ)
 // ==========================================
 if (currentPage === 'home') {
-    const btnSettings = document.getElementById('btn-open-settings');
     const settingsModal = document.getElementById('settings-modal');
     const guideModal = document.getElementById('guide-modal');
     const openGuide = document.getElementById('btn-open-guide');
@@ -243,12 +348,13 @@ if (currentPage === 'home') {
     if (guideModal && openGuide) {
         const closeGuide = () => { guideModal.style.display = 'none'; };
         openGuide.addEventListener('click', () => { guideModal.style.display = 'flex'; });
+        document.getElementById('mobile-guide')?.addEventListener('click', () => { guideModal.style.display = 'flex'; });
         document.getElementById('btn-close-guide')?.addEventListener('click', closeGuide);
         document.getElementById('btn-guide-done')?.addEventListener('click', closeGuide);
     }
     
-    if (btnSettings && settingsModal) {
-        btnSettings.addEventListener('click', () => settingsModal.style.display = 'flex');
+    if (settingsModal) {
+        if (window.location.hash === '#settings') settingsModal.style.display = 'flex';
         document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.style.display = 'none');
 
         // 1. Nút: Reset toàn bộ tiến độ (Chỉ xóa file user_progress)
@@ -311,7 +417,14 @@ async function loadSets(pageType) {
             q = query(collection(db, "study_sets"), where("ownerId", "==", currentUser.uid));
         }
 
-        const querySnapshot = await getDocs(q);
+        // Tải tiến độ một lần rồi ghép với từng bộ thẻ. Trước đây UI luôn ghi cứng 0 từ/0%.
+        const progressQuery = query(collection(db, "user_progress"), where("userId", "==", currentUser.uid));
+        const [querySnapshot, progressSnapshot] = await Promise.all([getDocs(q), getDocs(progressQuery)]);
+        const progressBySetId = new Map();
+        progressSnapshot.forEach((progressDoc) => {
+            const progress = progressDoc.data();
+            if (progress.setId) progressBySetId.set(progress.setId, progress.learnedCards || {});
+        });
         grid.innerHTML = '';
 
         if (querySnapshot.empty) {
@@ -332,32 +445,50 @@ async function loadSets(pageType) {
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const isMine = (data.ownerId === currentUser.uid);
+            const totalWords = Array.isArray(data.words) ? data.words.length : 0;
+            const learnedCards = progressBySetId.get(docSnap.id) || {};
+            const studiedCount = Object.values(learnedCards).filter((cardProgress) =>
+                cardProgress && (cardProgress.status === 'learned' || cardProgress.status === 'reviewing')
+            ).length;
+            const progressPercent = totalWords > 0 ? Math.round((studiedCount / totalWords) * 100) : 0;
 
             const card = document.createElement('div');
             card.className = 'study-set-card';
+            card.dataset.search = `${data.title || ''} ${data.description || ''} ${data.authorName || ''}`.toLocaleLowerCase('vi-VN');
+            card.setAttribute('role', 'link');
+            card.tabIndex = 0;
+            card.setAttribute('aria-label', `Bắt đầu học bộ thẻ ${data.title}`);
             
             const statusIcon = data.isPublic 
                 ? `<span style="color: #2196F3;"><i class="fa-solid fa-earth-americas"></i> Công khai</span>` 
                 : `<span style="color: #4CAF50;"><i class="fa-solid fa-lock"></i> Riêng tư</span>`;
 
             card.innerHTML = `
-                <h4 class="set-title">${data.title}</h4>
-                <p class="set-lang"><i class="fa-solid fa-book-open"></i> ${data.description || 'Không có mô tả'}</p>
+                <h4 class="set-title">${escapeHTML(data.title)}</h4>
+                <p class="set-lang"><i class="fa-solid fa-book-open"></i> ${escapeHTML(data.description || 'Không có mô tả')}</p>
                 
                 <div class="progress-container">
-                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%;"></div></div>
-                    <span class="progress-text">0 từ</span>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${progressPercent}%;"></div></div>
+                    <span class="progress-text">${studiedCount}/${totalWords} từ</span>
                 </div>
                 
                 <div class="set-footer">
                     <span class="word-count">${statusIcon}</span>
-                    <span class="author-tag"><i class="fa-regular fa-user"></i> ${data.authorName} ${isMine ? '(Bạn)' : ''}</span>
+                    <span class="author-tag"><i class="fa-regular fa-user"></i> ${escapeHTML(data.authorName || 'Ẩn danh')} ${isMine ? '(Bạn)' : ''}</span>
                 </div>
+                <span class="set-card-action">Bắt đầu học <i class="fa-solid fa-arrow-right"></i></span>
             `;
 
-            // Chức năng: Khi click vào thẻ, chuyển sang trang học và truyền ID bộ thẻ lên URL
-            card.addEventListener('click', () => {
+            // Cả thẻ là một hành động rõ ràng: chạm/click hoặc Enter/Space để mở bài học.
+            const openStudySet = () => {
                 window.location.href = `study.html?id=${docSnap.id}`;
+            };
+            card.addEventListener('click', openStudySet);
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openStudySet();
+                }
             });
 
             if (isMine && pageType === 'created') {
@@ -377,6 +508,7 @@ async function loadSets(pageType) {
             }
             grid.appendChild(card);
         });
+        applySetSearch();
     } catch (error) {
         console.error("Lỗi:", error);
         grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-triangle-exclamation"></i><h3>Chưa thể tải bộ thẻ</h3><p>Vui lòng kiểm tra kết nối và thử lại.</p></div>';
@@ -499,31 +631,31 @@ if (currentPage === 'create') {
                 <div class="field-grid">
                     <div class="field-group">
                         <label>Thuật ngữ</label>
-                        <input type="text" class="field-input input-term" placeholder="VD: Hello" value="${term}">
+                        <input type="text" class="field-input input-term" placeholder="VD: Hello" value="${escapeHTML(term)}">
                     </div>
                     <div class="field-group">
                         <label>Định nghĩa</label>
-                        <input type="text" class="field-input input-def" placeholder="VD: Xin chào" value="${def}">
+                        <input type="text" class="field-input input-def" placeholder="VD: Xin chào" value="${escapeHTML(def)}">
                     </div>
                 </div>
                 <div class="field-grid">
                     <div class="field-group">
                         <label>Phát âm</label>
-                        <input type="text" class="field-input input-pron" value="${pron}">
+                        <input type="text" class="field-input input-pron" value="${escapeHTML(pron)}">
                     </div>
                     <div class="field-group">
                         <label>Loại từ</label>
-                        <input type="text" class="field-input input-type" value="${type}">
+                        <input type="text" class="field-input input-type" value="${escapeHTML(type)}">
                     </div>
                 </div>
                 <div class="field-grid">
                     <div class="field-group">
                         <label>Ví dụ</label>
-                        <input type="text" class="field-input input-ex" value="${ex}">
+                        <input type="text" class="field-input input-ex" value="${escapeHTML(ex)}">
                     </div>
                     <div class="field-group">
                         <label>Từ đồng nghĩa</label>
-                        <input type="text" class="field-input input-syn" value="${syn}">
+                        <input type="text" class="field-input input-syn" value="${escapeHTML(syn)}">
                     </div>
                 </div>
             </div>
@@ -603,6 +735,11 @@ if (currentPage === 'create') {
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const data = docSnap.data();
+                    if (data.ownerId !== user.uid) {
+                        showError('Bạn không có quyền chỉnh sửa bộ thẻ này.');
+                        window.setTimeout(() => { window.location.href = 'created.html'; }, 800);
+                        return;
+                    }
                     document.getElementById('set-title').value = data.title;
                     document.getElementById('set-desc').value = data.description || '';
                     document.getElementById('set-public').checked = data.isPublic;
@@ -795,16 +932,27 @@ if (currentPage === 'study') {
 
     let wordsArray = [];
     let currentIndex = 0;
+    let isRandomMode = false;
     let studyProgress = {}; // Bây giờ sẽ lưu dạng Object SM-2 thay vì boolean
 
     const flashcard = document.getElementById('flashcard');
     const wordListContainer = document.getElementById('word-list-container');
+    const autoPlayAudio = document.getElementById('auto-play-audio');
+    const autoPlayPreferenceKey = 'vocab_auto_play_audio';
+    autoPlayAudio.checked = localStorage.getItem(autoPlayPreferenceKey) === 'true';
 
     function speakWord(text) {
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         window.speechSynthesis.speak(utterance);
     }
+
+    autoPlayAudio.addEventListener('change', () => {
+        localStorage.setItem(autoPlayPreferenceKey, String(autoPlayAudio.checked));
+        showToast(autoPlayAudio.checked ? 'Đã bật tự động phát âm.' : 'Đã tắt tự động phát âm.', 'info');
+        if (autoPlayAudio.checked && wordsArray[currentIndex]) speakWord(wordsArray[currentIndex].term);
+    });
 
     document.getElementById('btn-play-audio').addEventListener('click', (e) => {
         e.stopPropagation(); 
@@ -829,9 +977,9 @@ if (currentPage === 'study') {
         const typePron = `${currentWord.type ? currentWord.type + ' - ' : ''} ${currentWord.pronunciation || ''}`.trim();
         
         // Render HTML kết hợp rất đẹp mắt
-        document.getElementById('fc-back-def').innerHTML = 
-            (typePron ? `<span style="font-size: 16px; color: #777; font-weight: normal; display: block; margin-bottom: 8px;">${typePron}</span>` : '') + 
-            currentWord.definition;
+        document.getElementById('fc-back-def').innerHTML =
+            (typePron ? `<span style="font-size: 16px; color: #777; font-weight: normal; display: block; margin-bottom: 8px;">${escapeHTML(typePron)}</span>` : '') +
+            escapeHTML(currentWord.definition);
         
         const synElement = document.getElementById('fc-back-syn');
         if (currentWord.synonyms) {
@@ -849,13 +997,18 @@ if (currentPage === 'study') {
             exElement.style.display = 'none'; 
         }
 
-        document.getElementById('fc-counter').textContent = `Thẻ ${currentIndex + 1} / ${wordsArray.length}`;
+        const counterText = `Thẻ ${currentIndex + 1} / ${wordsArray.length}`;
+        document.getElementById('fc-counter').textContent = counterText;
+        document.getElementById('fc-counter-progress').textContent = counterText;
         renderList();
+        if (autoPlayAudio.checked) window.setTimeout(() => speakWord(currentWord.term), 120);
     }
 
     // --- CẬP NHẬT: VẼ LẠI DANH SÁCH BÊN DƯỚI THEO TRẠNG THÁI MỚI ---
     function renderList() {
         wordListContainer.innerHTML = '';
+        const learnedCount = Object.values(studyProgress).filter((progress) => progress?.status === 'learned').length;
+        document.getElementById('word-list-count').textContent = `${learnedCount}/${wordsArray.length} đã thuộc`;
         wordsArray.forEach((word, index) => {
             const progressData = studyProgress[index] || {};
             const isLearned = progressData.status === 'learned';
@@ -877,8 +1030,8 @@ if (currentPage === 'study') {
             row.className = rowClass;
             row.innerHTML = `
                 <div>
-                    <h4 style="font-size:18px;">${word.term} <span style="font-size:12px; color:#777; font-weight:normal;">${word.pronunciation}</span></h4>
-                    <p style="color:#555; font-size:14px; margin-top:5px;">${word.type ? word.type + ' - ' : ''} ${word.definition}</p>
+                    <h4 style="font-size:18px;">${escapeHTML(word.term)} <span style="font-size:12px; color:#777; font-weight:normal;">${escapeHTML(word.pronunciation || '')}</span></h4>
+                    <p style="color:#555; font-size:14px; margin-top:5px;">${escapeHTML(word.type ? word.type + ' - ' : '')} ${escapeHTML(word.definition)}</p>
                 </div>
                 <div>${iconHTML}</div>
             `;
@@ -951,11 +1104,42 @@ if (currentPage === 'study') {
         }
     }
 
+    const btnRandom = document.getElementById('btn-random');
+    const getRandomIndex = () => {
+        if (wordsArray.length < 2) return currentIndex;
+        let nextIndex = currentIndex;
+        while (nextIndex === currentIndex) nextIndex = Math.floor(Math.random() * wordsArray.length);
+        return nextIndex;
+    };
     document.getElementById('btn-next').addEventListener('click', () => {
-        if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); }
+        if (isRandomMode) { currentIndex = getRandomIndex(); updateUI(); }
+        else if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); }
     });
     document.getElementById('btn-prev').addEventListener('click', () => {
-        if (currentIndex > 0) { currentIndex--; updateUI(); }
+        if (isRandomMode) { currentIndex = getRandomIndex(); updateUI(); }
+        else if (currentIndex > 0) { currentIndex--; updateUI(); }
+    });
+    btnRandom.addEventListener('click', () => {
+        if (wordsArray.length < 2) return showError('Bộ thẻ cần ít nhất 2 từ để học ngẫu nhiên.');
+        isRandomMode = !isRandomMode;
+        btnRandom.classList.toggle('is-active', isRandomMode);
+        btnRandom.setAttribute('aria-pressed', String(isRandomMode));
+        btnRandom.title = isRandomMode ? 'Tắt chế độ học ngẫu nhiên' : 'Bật chế độ học ngẫu nhiên';
+        btnRandom.setAttribute('aria-label', btnRandom.title);
+        document.getElementById('study-mode-label').textContent = isRandomMode ? 'Ngẫu nhiên' : 'Thứ tự gốc';
+        showToast(isRandomMode ? 'Đã bật chế độ học ngẫu nhiên.' : 'Đã trở về thứ tự bộ thẻ.', 'info');
+    });
+    const progressModeButton = document.getElementById('btn-show-word-list');
+    const navigationControls = document.getElementById('study-navigation-controls');
+    const reviewControls = document.getElementById('study-review-controls');
+    progressModeButton.addEventListener('click', () => {
+        const isProgressMode = progressModeButton.getAttribute('aria-pressed') !== 'true';
+        progressModeButton.setAttribute('aria-pressed', String(isProgressMode));
+        progressModeButton.classList.toggle('is-active', isProgressMode);
+        navigationControls.classList.toggle('is-hidden', isProgressMode);
+        reviewControls.classList.toggle('is-active', isProgressMode);
+        progressModeButton.title = isProgressMode ? 'Trở về chế độ chuyển thẻ' : 'Bật chế độ cập nhật tiến độ';
+        showToast(isProgressMode ? 'Chế độ Tiến độ: đánh dấu Chưa nhớ hoặc Đã thuộc.' : 'Chế độ Điều hướng: chuyển thẻ trước hoặc sau.', 'info');
     });
 
     // --- CẬP NHẬT: LOGIC PHÂN LOẠI SM-2 KHI BẤM NÚT ---
@@ -1021,6 +1205,23 @@ if (currentPage === 'repetition') {
     const counterDisplay = document.getElementById('srs-total-count');
     const srsListContainer = document.getElementById('srs-word-list-container'); 
     const srsFeedback = document.getElementById('srs-feedback');
+    const srsListToggle = document.getElementById('btn-toggle-srs-list');
+    const srsListContent = document.getElementById('srs-list-content');
+    const srsListSummary = document.getElementById('srs-list-summary');
+    const repetitionGuideModal = document.getElementById('repetition-guide-modal');
+
+    const closeRepetitionGuide = () => { repetitionGuideModal.style.display = 'none'; };
+    document.getElementById('btn-open-repetition-guide')?.addEventListener('click', () => { repetitionGuideModal.style.display = 'flex'; });
+    document.getElementById('btn-close-repetition-guide')?.addEventListener('click', closeRepetitionGuide);
+    repetitionGuideModal?.addEventListener('click', (event) => {
+        if (event.target === repetitionGuideModal) closeRepetitionGuide();
+    });
+
+    srsListToggle.addEventListener('click', () => {
+        const isExpanded = srsListToggle.getAttribute('aria-expanded') === 'true';
+        srsListToggle.setAttribute('aria-expanded', String(!isExpanded));
+        srsListContent.hidden = isExpanded;
+    });
 
     // Hàm gọi loa
     document.getElementById('btn-play-audio').addEventListener('click', (e) => {
@@ -1106,8 +1307,8 @@ if (currentPage === 'repetition') {
 
             row.innerHTML = `
                 <div>
-                    <h4 style="font-size:18px;">${card.term} <span style="font-size:12px; color:#777; font-weight:normal;">${card.pronunciation || ''}</span></h4>
-                    <p style="color:#555; font-size:14px; margin-top:5px;">${card.type ? card.type + ' - ' : ''} ${card.definition}</p>
+                    <h4 style="font-size:18px;">${escapeHTML(card.term)} <span style="font-size:12px; color:#777; font-weight:normal;">${escapeHTML(card.pronunciation || '')}</span></h4>
+                    <p style="color:#555; font-size:14px; margin-top:5px;">${escapeHTML(card.type ? card.type + ' - ' : '')} ${escapeHTML(card.definition)}</p>
                 </div>
                 <div style="text-align: right; display: flex; align-items: center; gap: 10px;">
                     ${statusHTML}
@@ -1115,6 +1316,10 @@ if (currentPage === 'repetition') {
             `;
             srsListContainer.appendChild(row);
         });
+        const dueCount = allUpcomingCards.filter((item) => item.progress.nextReview <= now).length;
+        srsListSummary.textContent = dueCount > 0
+            ? `${dueCount} thẻ cần ôn · ${allUpcomingCards.length} thẻ trong kế hoạch`
+            : `Không có thẻ đến hạn · ${allUpcomingCards.length} thẻ trong kế hoạch`;
     }
 
     // 2. GOM THẺ VÀ TÁCH MẢNG
@@ -1125,18 +1330,24 @@ if (currentPage === 'repetition') {
             const querySnapshot = await getDocs(q);
             const now = new Date().getTime();
 
-            for (const docSnap of querySnapshot.docs) {
-                const progressData = docSnap.data();
+            // Tải các bộ thẻ song song thay vì chờ lần lượt từng bộ.
+            const progressWithSets = await Promise.all(querySnapshot.docs.map(async (progressDoc) => {
+                const progressData = progressDoc.data();
+                if (!progressData.setId) return null;
+                const setDocSnap = await getDoc(doc(db, "study_sets", progressData.setId));
+                if (!setDocSnap.exists()) return null;
+                return { progressData, wordsArray: setDocSnap.data().words || [] };
+            }));
+
+            for (const item of progressWithSets) {
+                if (!item) continue;
+                const { progressData, wordsArray } = item;
                 const setId = progressData.setId;
                 const learnedCards = progressData.learnedCards || {};
 
-                const setDocSnap = await getDoc(doc(db, "study_sets", setId));
-                if (!setDocSnap.exists()) continue;
-                
-                const wordsArray = setDocSnap.data().words || [];
-
                 for (const [index, pData] of Object.entries(learnedCards)) {
                     if (pData.status === 'reviewing') {
+                        if (!wordsArray[index]) continue;
                         const cardObj = {
                             setId: setId,
                             wordIndex: index,
@@ -1186,9 +1397,9 @@ if (currentPage === 'repetition') {
         document.getElementById('fc-front-pron').textContent = ''; 
 
         const typePron = `${card.type ? card.type + ' - ' : ''} ${card.pronunciation || ''}`.trim();
-        document.getElementById('fc-back-def').innerHTML = 
-            (typePron ? `<span style="font-size: 16px; color: #777; font-weight: normal; display: block; margin-bottom: 8px;">${typePron}</span>` : '') + 
-            card.definition;
+        document.getElementById('fc-back-def').innerHTML =
+            (typePron ? `<span style="font-size: 16px; color: #777; font-weight: normal; display: block; margin-bottom: 8px;">${escapeHTML(typePron)}</span>` : '') +
+            escapeHTML(card.definition);
         
         const synElement = document.getElementById('fc-back-syn');
         if (card.synonyms) { synElement.textContent = card.synonyms.replace(/,/g, ';'); synElement.style.display = 'block'; } 
@@ -1213,15 +1424,6 @@ if (currentPage === 'repetition') {
         const currentData = dueCards[currentCardIndex];
         const newProgress = calculateSM2(quality, currentData.progress);
         
-        // CẬP NHẬT MẢNG TỔNG: Tìm và gán dữ liệu mới để nó nhảy ngày
-        const upcomingIndex = allUpcomingCards.findIndex(c => c.setId === currentData.setId && c.wordIndex === currentData.wordIndex);
-        if(upcomingIndex !== -1) {
-            allUpcomingCards[upcomingIndex].progress = newProgress;
-        }
-
-        // Sắp xếp lại danh sách tổng (thẻ vừa học sẽ bị đẩy tít xuống dưới cùng)
-        allUpcomingCards.sort((a, b) => a.progress.nextReview - b.progress.nextReview);
-
         try {
             const progressRef = doc(db, "user_progress", `${currentUser.uid}_${currentData.setId}`);
             const snap = await getDoc(progressRef);
@@ -1232,7 +1434,19 @@ if (currentPage === 'repetition') {
         } catch (error) {
             console.error("Lỗi lưu SM-2:", error);
             if (srsFeedback) srsFeedback.textContent = 'Chưa thể lưu đánh giá. Vui lòng thử lại.';
+            document.querySelectorAll('.btn-srs').forEach((btn) => {
+                btn.disabled = false;
+                btn.classList.remove('is-processing');
+            });
+            return;
         }
+
+        // Chỉ cập nhật giao diện sau khi Firebase đã lưu thành công.
+        const upcomingIndex = allUpcomingCards.findIndex(c => c.setId === currentData.setId && c.wordIndex === currentData.wordIndex);
+        if (upcomingIndex !== -1) {
+            allUpcomingCards[upcomingIndex].progress = newProgress;
+        }
+        allUpcomingCards.sort((a, b) => a.progress.nextReview - b.progress.nextReview);
 
         currentCardIndex++;
         updateUI();
@@ -1428,7 +1642,7 @@ if (currentPage === 'quiz') {
         qData.options.forEach((opt, optionIndex) => {
             const btn = document.createElement('button');
             btn.className = 'quiz-option-btn';
-            btn.innerHTML = `<span>${isEnToVi ? opt.definition : opt.term}</span><span class="quiz-option-key">${String.fromCharCode(65 + optionIndex)}</span>`;
+            btn.innerHTML = `<span>${escapeHTML(isEnToVi ? opt.definition : opt.term)}</span><span class="quiz-option-key">${String.fromCharCode(65 + optionIndex)}</span>`;
             btn.dataset.optionIndex = optionIndex;
             
             btn.addEventListener('click', () => {

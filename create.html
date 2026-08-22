@@ -15,7 +15,7 @@
             <button class="hamburger-btn" id="hamburger-toggle">
                 <i class="fa-solid fa-bars"></i>
             </button>
-            <div class="logo">📚</div>
+            <a class="logo" href="./" aria-label="Về trang chủ"><img src="assets/brand-mark.png" alt=""></a>
             <a href="./" class="nav-btn"><i class="fa-solid fa-house"></i> Trang chủ</a>
             <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
         </div>
@@ -28,7 +28,7 @@
         
         <!-- HEADER CỦA TRANG TẠO -->
         <div class="create-header">
-            <h2 id="page-title">Tạo bộ thẻ mới</h2>
+            <div><p class="eyebrow">Bộ thẻ mới</p><h1 id="page-title">Tạo bộ thẻ mới</h1><p class="section-subtitle">Thêm từ vựng theo cách của bạn — từng thẻ hoặc nhập hàng loạt.</p></div>
             <div class="create-actions">
                 <button class="btn btn-outline" id="btn-open-import"><i class="fa-solid fa-file-import"></i> Nhập</button>
                 <div class="toggle-wrapper">
@@ -97,6 +97,14 @@
             </div>
         </div>
     </main>
+
+    <nav class="mobile-tabbar" aria-label="Điều hướng nhanh">
+        <a href="./"><i class="fa-solid fa-house"></i><span>Trang chủ</span></a>
+        <a href="created.html"><i class="fa-regular fa-folder-open"></i><span>Bộ thẻ</span></a>
+        <a class="mobile-tabbar-create active" href="create.html" aria-current="page" aria-label="Tạo bộ thẻ"><i class="fa-solid fa-plus"></i></a>
+        <a href="repetition.html"><i class="fa-solid fa-clock-rotate-left"></i><span>Ôn tập</span></a>
+        <a href="./#guide"><i class="fa-regular fa-circle-question"></i><span>Hỗ trợ</span></a>
+    </nav>
 
     <script type="module" src="script.js"></script>
 </body>

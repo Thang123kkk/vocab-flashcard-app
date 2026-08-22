@@ -15,12 +15,12 @@
             <button class="hamburger-btn" id="hamburger-toggle">
                 <i class="fa-solid fa-bars"></i>
             </button>
-            <div class="logo">📚</div>
+            <a class="logo" href="./" aria-label="Về trang chủ"><img src="assets/brand-mark.png" alt=""></a>
             <a href="./" class="nav-btn"><i class="fa-solid fa-house"></i> Trang chủ</a>
             <a href="created.html" class="nav-btn active"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
         </div>
         <div class="nav-right">
-            <button class="icon-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <button class="icon-btn" id="btn-open-search" type="button" aria-label="Tìm kiếm bộ thẻ"><i class="fa-solid fa-magnifying-glass"></i></button>
             <div class="user-avatar" id="nav-avatar"><i class="fa-solid fa-user"></i></div>
         </div>
     </header>
@@ -29,13 +29,29 @@
         <!-- Bỏ cột trái đi để màn hình rộng hơn cho việc quản lý thẻ của mình -->
         <section class="content-right" style="width: 100%;">
             <div class="section-header">
-                <h3>Bộ thẻ do tôi tạo</h3>
+                <div><p class="eyebrow">Thư viện cá nhân</p><h1>Bộ thẻ của tôi</h1><p class="section-subtitle">Quản lý, chỉnh sửa và tiếp tục học theo nhịp độ của bạn.</p></div>
                 <a href="create.html" class="btn btn-black" style="text-decoration: none; display: block; text-align: center;"><i class="fa-solid fa-plus"></i> Tạo Bộ thẻ</a>
             </div>
             
             <div class="card-grid" id="learning-sets-grid"></div>
         </section>
     </main>
+
+    <div id="search-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">
+        <div class="modal-content search-modal-content">
+            <div class="modal-header"><h3 id="search-modal-title">Tìm bộ thẻ của tôi</h3><button id="btn-close-search" class="close-btn" type="button" aria-label="Đóng tìm kiếm"><i class="fa-solid fa-xmark"></i></button></div>
+            <label class="search-input-wrap" for="search-sets"><i class="fa-solid fa-magnifying-glass"></i><input id="search-sets" type="search" placeholder="Nhập tên hoặc mô tả bộ thẻ..." autocomplete="off"></label>
+            <p id="search-empty" class="search-empty" hidden>Không tìm thấy bộ thẻ phù hợp.</p>
+        </div>
+    </div>
+
+    <nav class="mobile-tabbar" aria-label="Điều hướng nhanh">
+        <a href="./"><i class="fa-solid fa-house"></i><span>Trang chủ</span></a>
+        <a class="active" href="created.html" aria-current="page"><i class="fa-regular fa-folder-open"></i><span>Bộ thẻ</span></a>
+        <a class="mobile-tabbar-create" href="create.html" aria-label="Tạo bộ thẻ"><i class="fa-solid fa-plus"></i></a>
+        <a href="repetition.html"><i class="fa-solid fa-clock-rotate-left"></i><span>Ôn tập</span></a>
+        <a href="./#guide"><i class="fa-regular fa-circle-question"></i><span>Hỗ trợ</span></a>
+    </nav>
 
     <script type="module" src="script.js"></script>
 </body>

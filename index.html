@@ -21,36 +21,44 @@
             <button class="hamburger-btn" id="hamburger-toggle">
                 <i class="fa-solid fa-bars"></i>
             </button>
-            <div class="logo">📚</div>
+            <a class="logo" href="./" aria-label="Về trang chủ"><img src="assets/brand-mark.png" alt=""></a>
             <!-- Dùng thẻ a href để chuyển file thực sự -->
             <a href="./" class="nav-btn active"><i class="fa-solid fa-house"></i> Trang chủ</a>
             <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
             <button class="nav-btn" id="btn-open-guide" type="button" aria-label="Hướng dẫn sử dụng"><i class="fa-regular fa-circle-question"></i> Hướng dẫn</button>
         </div>
         <div class="nav-right">
-            <button class="icon-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+            <button class="icon-btn" id="btn-open-search" type="button" aria-label="Tìm kiếm bộ thẻ"><i class="fa-solid fa-magnifying-glass"></i></button>
             <div class="user-avatar" id="nav-avatar"><i class="fa-solid fa-user"></i></div>
         </div>
     </header>
 
     <main id="main-container">
+        <section class="home-hero" aria-labelledby="home-hero-title">
+            <div>
+                <p class="eyebrow"><i class="fa-solid fa-sparkles"></i> Không gian học tập của bạn</p>
+                <h1 id="home-hero-title">Mỗi ngày một chút,<br>tiến bộ thật nhiều.</h1>
+                <p>Chọn một bộ thẻ để bắt đầu, hoặc tạo chủ đề mới theo mục tiêu của bạn.</p>
+            </div>
+            <a href="create.html" class="btn btn-hero"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ</a>
+        </section>
         <div class="dashboard-layout">
             <!-- CỘT TRÁI -->
             <aside class="sidebar-left">
                 <div class="card activity-card">
                     <div class="card-header">
-                        <h3>Hoạt động học tập</h3>
-<i class="fa-solid fa-gear" id="btn-open-settings" style="color: #888; cursor: pointer;" title="Cài đặt dữ liệu"></i>                    </div>
+                        <div><p class="eyebrow">Nhịp học hôm nay</p><h3>Hoạt động học tập</h3></div>
+                    </div>
+                    <p class="activity-summary">Dành vài phút ôn lại để biến từ mới thành kiến thức lâu dài.</p>
                     
-                   <!-- Phần Thống kê: Từ đến hạn & Thuần thục -->
-                    <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 14px; font-weight: bold; color: #555;">
-                        <span>Từ đến hạn: <span id="due-today-count" style="color: #111;">0</span></span>
-                        <span>Thuần thục: <span id="mastered-count" style="color: #111;">0</span></span>
+                    <div class="activity-stats" aria-label="Tóm tắt tiến độ học tập">
+                        <div class="activity-stat activity-stat-due"><span class="activity-stat-icon"><i class="fa-solid fa-clock"></i></span><div><span class="activity-stat-label">Đến hạn</span><strong id="due-today-count">0</strong><span class="activity-stat-suffix">từ cần ôn</span></div></div>
+                        <div class="activity-stat activity-stat-mastered"><span class="activity-stat-icon"><i class="fa-solid fa-award"></i></span><div><span class="activity-stat-label">Thuần thục</span><strong id="mastered-count">0</strong><span class="activity-stat-suffix">từ đã nhớ</span></div></div>
                     </div>
 
                     <!-- Phần Biểu đồ dự báo -->
                     <div class="chart-area" id="forecast-chart-container">
-                        <p class="chart-title" style="border-bottom: 1px dotted #ccc; padding-bottom: 5px; display: inline-block;">Dự báo ôn tập 7 ngày tới</p>
+                        <p class="chart-title">Dự báo ôn tập 7 ngày tới</p>
                         <div class="bars" id="forecast-bars" style="align-items: flex-end; height: 70px;">
                             <!-- JS sẽ tự động vẽ các cột vào đây -->
                         </div>
@@ -114,6 +122,22 @@
             </div>
         </div>
     </main>
+
+    <div id="search-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">
+        <div class="modal-content search-modal-content">
+            <div class="modal-header"><h3 id="search-modal-title">Tìm bộ thẻ</h3><button id="btn-close-search" class="close-btn" type="button" aria-label="Đóng tìm kiếm"><i class="fa-solid fa-xmark"></i></button></div>
+            <label class="search-input-wrap" for="search-sets"><i class="fa-solid fa-magnifying-glass"></i><input id="search-sets" type="search" placeholder="Nhập tên, mô tả hoặc tác giả..." autocomplete="off"></label>
+            <p id="search-empty" class="search-empty" hidden>Không tìm thấy bộ thẻ phù hợp.</p>
+        </div>
+    </div>
+
+    <nav class="mobile-tabbar" aria-label="Điều hướng nhanh">
+        <a class="active" href="./" aria-current="page"><i class="fa-solid fa-house"></i><span>Trang chủ</span></a>
+        <a href="created.html"><i class="fa-regular fa-folder-open"></i><span>Bộ thẻ</span></a>
+        <a class="mobile-tabbar-create" href="create.html" aria-label="Tạo bộ thẻ"><i class="fa-solid fa-plus"></i></a>
+        <a href="repetition.html"><i class="fa-solid fa-clock-rotate-left"></i><span>Ôn tập</span></a>
+        <button id="mobile-guide" type="button"><i class="fa-regular fa-circle-question"></i><span>Hướng dẫn</span></button>
+    </nav>
 
     <script type="module" src="script.js"></script>
 </body>

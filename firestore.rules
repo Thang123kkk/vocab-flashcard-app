@@ -1,0 +1,32 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsExistingSet() {
+      return signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /study_sets/{setId} {
+      // Người dùng đã đăng nhập có thể xem bộ thẻ công khai hoặc bộ thẻ của họ.
+      allow read: if signedIn() && (resource.data.isPublic == true || ownsExistingSet());
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      // Không thể đổi chủ sở hữu của bộ thẻ qua thao tác cập nhật.
+      allow update: if ownsExistingSet()
+                    && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if ownsExistingSet();
+    }
+
+    match /user_progress/{progressId} {
+      // Tiến độ chỉ thuộc về đúng người dùng đã đăng nhập.
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == resource.data.userId;
+    }
+  }
+}
