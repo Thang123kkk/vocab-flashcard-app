@@ -25,6 +25,7 @@ const grid = document.getElementById('learning-sets-grid');
 const searchModal = document.getElementById('search-modal');
 const searchInput = document.getElementById('search-sets');
 const searchEmpty = document.getElementById('search-empty');
+const searchResults = document.getElementById('search-results');
 const progressFilter = document.getElementById('filter-set-progress');
 const visibilityFilter = document.getElementById('filter-set-visibility');
 const setSort = document.getElementById('sort-sets');
@@ -33,6 +34,41 @@ const siteFooter = document.createElement('footer');
 siteFooter.className = 'site-footer';
 siteFooter.innerHTML = '<a class="site-footer-brand" href="/" aria-label="Về trang chủ"><img src="/assets/brand-mark.png" alt=""> <strong>SuperVocab</strong></a><span>Development by Do Quang Thang</span>';
 document.body.append(siteFooter);
+
+const pageTransition = document.createElement('div');
+pageTransition.className = 'page-transition';
+pageTransition.setAttribute('aria-hidden', 'true');
+pageTransition.innerHTML = '<div class="page-transition-content"><span class="brand-loader-mark"><img src="/assets/brand-mark.png" alt=""></span><p id="page-transition-label">Đang chuyển trang</p></div>';
+document.body.append(pageTransition);
+
+function showPageTransition(label = 'Đang chuyển trang') {
+    document.getElementById('page-transition-label').textContent = label;
+    pageTransition.classList.add('is-visible');
+    pageTransition.setAttribute('aria-hidden', 'false');
+}
+
+function hidePageTransition() {
+    pageTransition.classList.remove('is-visible');
+    pageTransition.setAttribute('aria-hidden', 'true');
+}
+
+function brandLoadingMarkup(label = 'Đang tải dữ liệu...') {
+    return `<div class="brand-inline-loader" role="status"><span class="brand-loader-mark"><img src="/assets/brand-mark.png" alt=""></span><p>${escapeHTML(label)}</p></div>`;
+}
+
+function brandButtonLoading(label = 'Đang tải...') {
+    return `<span class="brand-button-loader" aria-hidden="true"><img src="/assets/brand-mark.png" alt=""></span>${escapeHTML(label)}`;
+}
+
+document.addEventListener('click', (event) => {
+    const link = event.target.closest('a[href]');
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target || link.hasAttribute('download') || link.dataset.noLoader !== undefined) return;
+    const targetUrl = new URL(link.href, window.location.href);
+    const isSameDocument = targetUrl.pathname === window.location.pathname && targetUrl.search === window.location.search;
+    if (targetUrl.origin === window.location.origin && !isSameDocument) showPageTransition();
+});
+window.addEventListener('beforeunload', () => showPageTransition());
+window.addEventListener('pageshow', hidePageTransition);
 
 const accountDrawer = document.createElement('aside');
 accountDrawer.id = 'account-drawer';
@@ -131,7 +167,7 @@ async function loadAdminReviewQueue() {
     if (!queueGrid || !reviewContent || !currentUser || !hasAdminAccess) return;
 
     reviewContent.hidden = false;
-    queueGrid.innerHTML = '<div class="admin-empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Đang tải hàng chờ duyệt...</p></div>';
+    queueGrid.innerHTML = `<div class="admin-empty">${brandLoadingMarkup('Đang tải hàng chờ duyệt...')}</div>`;
     try {
         const pendingSnapshot = await getDocs(query(collection(db, 'study_sets'), where('publicationStatus', '==', 'pending')));
         queueCount.textContent = `${pendingSnapshot.size} bộ thẻ`;
@@ -270,14 +306,56 @@ function escapeHTML(value = '') {
         .replace(/'/g, '&#039;');
 }
 
+function normalizeSearchText(value = '') {
+    return textValue(value).toLocaleLowerCase('vi-VN')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd');
+}
+
+function renderSearchResults(cards, hasSearchCriteria) {
+    if (!searchResults) return;
+    if (!hasSearchCriteria) {
+        searchResults.innerHTML = '<p class="search-results-hint">Nhập tên bộ thẻ, mô tả hoặc tên tác giả để tìm nhanh.</p>';
+        return;
+    }
+    if (!cards.length) {
+        searchResults.innerHTML = '<div class="search-no-results"><i class="fa-solid fa-magnifying-glass"></i><p>Không tìm thấy bộ thẻ phù hợp.</p></div>';
+        return;
+    }
+
+    searchResults.innerHTML = '';
+    cards.slice(0, 8).forEach((card) => {
+        const result = document.createElement('button');
+        result.className = 'search-result-item';
+        result.type = 'button';
+        const title = card.querySelector('.set-title')?.textContent || 'Bộ thẻ chưa đặt tên';
+        const description = card.querySelector('.set-lang')?.textContent?.trim() || 'Không có mô tả';
+        result.innerHTML = `<span class="search-result-icon"><i class="fa-solid fa-layer-group"></i></span><span class="search-result-copy"><strong>${escapeHTML(title)}</strong><small>${escapeHTML(description)}</small></span><i class="fa-solid fa-arrow-right search-result-arrow"></i>`;
+        result.addEventListener('click', () => {
+            const id = card.dataset.setId;
+            if (!id) return;
+            showPageTransition('Đang mở bộ thẻ');
+            window.location.href = `/study/?id=${encodeURIComponent(id)}`;
+        });
+        searchResults.append(result);
+    });
+    if (cards.length > 8) {
+        const more = document.createElement('p');
+        more.className = 'search-results-more';
+        more.textContent = `Hiển thị 8/${cards.length} kết quả. Hãy nhập thêm từ khóa để thu hẹp.`;
+        searchResults.append(more);
+    }
+}
+
 function applySetSearch() {
     if (!grid || !searchInput) return;
-    const keyword = searchInput.value.trim().toLocaleLowerCase('vi-VN');
+    const keyword = normalizeSearchText(searchInput.value);
     const selectedProgress = progressFilter?.value || 'all';
     const selectedVisibility = visibilityFilter?.value || 'all';
     const sortMode = setSort?.value || 'default';
     const cards = [...grid.querySelectorAll('.study-set-card')];
-    let visibleCount = 0;
+    const visibleCards = [];
     cards.forEach((card) => {
         const progress = Number(card.dataset.progress || 0);
         const matchesProgress = selectedProgress === 'all'
@@ -287,7 +365,7 @@ function applySetSearch() {
         const matchesVisibility = selectedVisibility === 'all' || card.dataset.visibility === selectedVisibility;
         const matches = (!keyword || (card.dataset.search || '').includes(keyword)) && matchesProgress && matchesVisibility;
         card.hidden = !matches;
-        if (matches) visibleCount++;
+        if (matches) visibleCards.push(card);
     });
     const sorters = {
         'progress-desc': (a, b) => Number(b.dataset.progress || 0) - Number(a.dataset.progress || 0),
@@ -297,13 +375,15 @@ function applySetSearch() {
     if (sorters[sortMode]) cards.sort(sorters[sortMode]).forEach((card) => grid.appendChild(card));
     if (searchEmpty) {
         const hasActiveFilter = selectedProgress !== 'all' || selectedVisibility !== 'all';
-        searchEmpty.hidden = visibleCount > 0 || (!keyword && !hasActiveFilter);
+        searchEmpty.hidden = true;
+        renderSearchResults(visibleCards, Boolean(keyword) || hasActiveFilter);
     }
 }
 
 document.getElementById('btn-open-search')?.addEventListener('click', () => {
     if (!searchModal) return;
     searchModal.style.display = 'flex';
+    applySetSearch();
     window.setTimeout(() => searchInput?.focus(), 0);
 });
 document.getElementById('btn-close-search')?.addEventListener('click', () => {
@@ -650,12 +730,12 @@ onAuthStateChanged(auth, (user) => {
         
         // KIỂM TRA BẢO VỆ: Có nút avatar thì mới đổi hình
         if (avatarBtn) {
+            avatarBtn.classList.remove('is-login-button');
             avatarBtn.innerHTML = user.photoURL
                 ? `<img src="${escapeHTML(user.photoURL)}" style="width:100%; height:100%; border-radius:50%;" alt="Ảnh đại diện">`
                 : '<i class="fa-solid fa-user"></i>';
             avatarBtn.title = 'Mở tài khoản và cài đặt';
-            avatarBtn.setAttribute('role', 'button');
-            avatarBtn.tabIndex = 0;
+            avatarBtn.setAttribute('aria-label', 'Mở tài khoản và cài đặt');
         }
         document.getElementById('account-profile-name').textContent = user.displayName || 'Người học';
         document.getElementById('account-profile-email').textContent = user.email || 'Đã đăng nhập';
@@ -677,7 +757,12 @@ onAuthStateChanged(auth, (user) => {
     } else {
         currentUser = null;
         syncAdminAccess(null);
-        if (avatarBtn) avatarBtn.innerHTML = `<i class="fa-solid fa-user"></i>`;
+        if (avatarBtn) {
+            avatarBtn.classList.add('is-login-button');
+            avatarBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i><span>Đăng nhập</span>';
+            avatarBtn.title = 'Đăng nhập';
+            avatarBtn.setAttribute('aria-label', 'Đăng nhập');
+        }
         document.getElementById('account-profile-name').textContent = 'Khách';
         document.getElementById('account-profile-email').textContent = 'Đăng nhập để đồng bộ dữ liệu';
         document.getElementById('account-profile-avatar').innerHTML = '<i class="fa-solid fa-user"></i>';
@@ -691,13 +776,6 @@ if (avatarBtn) {
     avatarBtn.addEventListener('click', () => {
         if (!currentUser) startGoogleSignIn();
         else openAccountDrawer();
-    });
-    avatarBtn.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            if (!currentUser) startGoogleSignIn();
-            else openAccountDrawer();
-        }
     });
 }
 
@@ -790,7 +868,7 @@ async function loadSets(pageType) {
     const closeNewUserWelcome = () => { if (newUserWelcomeModal) newUserWelcomeModal.style.display = 'none'; };
     document.getElementById('btn-close-new-user-welcome')?.addEventListener('click', closeNewUserWelcome);
     document.getElementById('btn-welcome-browse')?.addEventListener('click', closeNewUserWelcome);
-    grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-spinner fa-spin"></i><p>Đang tải bộ thẻ...</p></div>';
+    grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">${brandLoadingMarkup('Đang tải bộ thẻ...')}</div>`;
 
     try {
         let q;
@@ -816,8 +894,8 @@ async function loadSets(pageType) {
                     <i class="fa-regular fa-folder-open"></i>
                     <h3>Chưa có bộ thẻ nào</h3>
                     <p>Bắt đầu bằng cách tạo bộ thẻ đầu tiên của bạn để học từ vựng</p>
-                    <a href="/create/" class="btn btn-black" style="text-decoration: none; display: inline-block; margin-top: 15px;">
-                        <i class="fa-solid fa-plus"></i> Tạo Bộ thẻ
+                    <a href="/create/" class="btn btn-black empty-state-create-action" style="text-decoration: none; margin-top: 15px;">
+                        <i class="fa-solid fa-plus"></i><span>Tạo Bộ thẻ</span>
                     </a>
                 </div>
             `;
@@ -837,7 +915,8 @@ async function loadSets(pageType) {
 
             const card = document.createElement('div');
             card.className = 'study-set-card';
-            card.dataset.search = `${data.title || ''} ${data.description || ''} ${data.authorName || ''}`.toLocaleLowerCase('vi-VN');
+            card.dataset.search = normalizeSearchText(`${data.title || ''} ${data.description || ''} ${data.authorName || ''}`);
+            card.dataset.setId = docSnap.id;
             card.dataset.progress = String(progressPercent);
             card.dataset.words = String(totalWords);
             card.dataset.title = (data.title || '').toLocaleLowerCase('vi-VN');
@@ -1248,7 +1327,7 @@ if (currentPage === 'create') {
         })));
 
         if (wordsArray.length === 0) return alert("Cần ít nhất 1 từ vựng hợp lệ!");
-        btnSaveSet.textContent = "Đang lưu...";
+        btnSaveSet.innerHTML = brandButtonLoading('Đang lưu...');
 
         const isPublicRequest = document.getElementById('set-public').checked;
         const setData = {
@@ -1780,7 +1859,7 @@ if (currentPage === 'create') {
 
             const originalText = startButton.innerHTML;
             startButton.disabled = true;
-            startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kiểm tra...';
+            startButton.innerHTML = brandButtonLoading('Đang kiểm tra...');
             try {
                 const setSnapshot = await getDoc(doc(db, 'study_sets', currentSetId));
                 if (!setSnapshot.exists()) throw new Error('Bộ thẻ không tồn tại.');
@@ -2755,7 +2834,7 @@ if (currentPage === 'quiz') {
         const qData = questions[currentQuestionIndex];
         const progressRef = doc(db, "user_progress", `${currentUser.uid}_${setId}`);
         
-        btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
+        btnElement.innerHTML = brandButtonLoading('Đang lưu...');
         
         try {
             const snap = await getDoc(progressRef);
