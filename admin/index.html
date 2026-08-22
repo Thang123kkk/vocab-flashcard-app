@@ -26,9 +26,14 @@
         </section>
 
         <section id="admin-access-state" class="admin-access-state" hidden></section>
+        <div id="admin-tabs" class="admin-tabs" hidden><button class="admin-tab is-active" type="button" data-admin-tab="sets"><i class="fa-solid fa-layer-group"></i> Kiểm duyệt bộ thẻ</button><button class="admin-tab" type="button" data-admin-tab="users"><i class="fa-solid fa-users"></i> Quản lý người dùng</button></div>
         <section id="admin-review-content" hidden>
             <div class="admin-queue-header"><div><p class="eyebrow">Hàng chờ xét duyệt</p><h2>Bộ thẻ đang chờ</h2></div><span id="admin-queue-count" class="admin-count-badge">0 bộ thẻ</span></div>
             <div id="admin-pending-grid" class="admin-review-grid" aria-live="polite"></div>
+        </section>
+        <section id="admin-users-content" hidden>
+            <div class="admin-queue-header"><div><p class="eyebrow">Tài khoản SuperVocab</p><h2>Người dùng</h2></div><span id="admin-user-count" class="admin-count-badge">0 người dùng</span></div>
+            <div id="admin-users-grid" class="admin-users-grid" aria-live="polite"></div>
         </section>
     </main>
 

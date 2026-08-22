@@ -21,6 +21,15 @@ let currentUser = null;
 let hasAdminAccess = false;
 const NEW_USER_WELCOME_KEY = 'supervocab:new-user-welcome';
 const avatarBtn = document.getElementById('nav-avatar');
+const themeStorageKey = 'supervocab:theme';
+const themeToggle = document.createElement('button');
+themeToggle.id = 'btn-theme-toggle';
+themeToggle.className = 'icon-btn theme-toggle';
+themeToggle.type = 'button';
+themeToggle.title = 'Chuyển chế độ tối';
+themeToggle.setAttribute('aria-label', 'Chuyển chế độ tối');
+const navRight = document.querySelector('.top-nav .nav-right');
+if (navRight) navRight.insertBefore(themeToggle, avatarBtn || navRight.firstChild);
 const grid = document.getElementById('learning-sets-grid');
 const searchModal = document.getElementById('search-modal');
 const searchInput = document.getElementById('search-sets');
@@ -51,6 +60,23 @@ function hidePageTransition() {
     pageTransition.classList.remove('is-visible');
     pageTransition.setAttribute('aria-hidden', 'true');
 }
+
+function applyTheme(theme) {
+    const isDark = theme === 'dark';
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+    themeToggle.innerHTML = isDark ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    const label = isDark ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối';
+    themeToggle.title = label;
+    themeToggle.setAttribute('aria-label', label);
+}
+
+const savedTheme = localStorage.getItem(themeStorageKey);
+applyTheme(savedTheme || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+themeToggle.addEventListener('click', () => {
+    const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(themeStorageKey, nextTheme);
+    applyTheme(nextTheme);
+});
 
 function brandLoadingMarkup(label = 'Đang tải dữ liệu...') {
     return `<div class="brand-inline-loader" role="status"><span class="brand-loader-mark"><img src="/assets/brand-mark.png" alt=""></span><p>${escapeHTML(label)}</p></div>`;
@@ -226,6 +252,58 @@ async function updateReviewStatus(setId, status, note = '') {
     }
 }
 
+function formatUserDate(value) {
+    try {
+        const date = value?.toDate ? value.toDate() : (value ? new Date(value) : null);
+        return date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(date) : 'Chưa có dữ liệu';
+    } catch { return 'Chưa có dữ liệu'; }
+}
+
+async function ensureUserProfile(user) {
+    if (!user) return;
+    try {
+        const profileRef = doc(db, 'users', user.uid);
+        const existing = await getDoc(profileRef);
+        const profile = { userId: user.uid, displayName: user.displayName || 'Người học', email: user.email || '', photoURL: user.photoURL || '', lastActiveAt: new Date() };
+        if (!existing.exists()) profile.joinedAt = new Date();
+        await setDoc(profileRef, profile, { merge: true });
+    } catch (error) { console.warn('Không thể đồng bộ hồ sơ người dùng:', error); }
+}
+
+async function loadAdminUsers() {
+    const usersGrid = document.getElementById('admin-users-grid');
+    const userCount = document.getElementById('admin-user-count');
+    if (!usersGrid || !currentUser || !hasAdminAccess) return;
+    usersGrid.innerHTML = `<div class="admin-empty">${brandLoadingMarkup('Đang tải người dùng...')}</div>`;
+    try {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const users = usersSnapshot.docs.map((userDoc) => ({ id: userDoc.id, ...userDoc.data() })).sort((a, b) => (b.lastActiveAt?.toMillis?.() || 0) - (a.lastActiveAt?.toMillis?.() || 0));
+        userCount.textContent = `${users.length} người dùng`;
+        if (!users.length) { usersGrid.innerHTML = '<div class="admin-empty"><i class="fa-solid fa-users"></i><h3>Chưa có hồ sơ người dùng</h3><p>Hồ sơ sẽ được tạo tự động khi người dùng đăng nhập lại.</p></div>'; return; }
+        usersGrid.innerHTML = '';
+        users.forEach((user) => {
+            const card = document.createElement('article');
+            card.className = 'admin-user-card';
+            const avatar = user.photoURL ? `<img src="${escapeHTML(user.photoURL)}" alt="">` : '<i class="fa-solid fa-user"></i>';
+            card.innerHTML = `<div class="admin-user-head"><span class="admin-user-avatar">${avatar}</span><div><h3>${escapeHTML(user.displayName || 'Người học')}</h3><p>${escapeHTML(user.email || 'Không có email')}</p></div></div><dl><div><dt>Tham gia</dt><dd>${formatUserDate(user.joinedAt)}</dd></div><div><dt>Hoạt động gần nhất</dt><dd>${formatUserDate(user.lastActiveAt)}</dd></div></dl><button class="btn btn-outline admin-user-sets" type="button"><i class="fa-solid fa-layer-group"></i> Xem bộ thẻ</button><div class="admin-user-sets-list" hidden></div>`;
+            const button = card.querySelector('.admin-user-sets');
+            const list = card.querySelector('.admin-user-sets-list');
+            button.addEventListener('click', async () => {
+                if (!list.hidden) { list.hidden = true; button.innerHTML = '<i class="fa-solid fa-layer-group"></i> Xem bộ thẻ'; return; }
+                button.disabled = true; button.innerHTML = brandButtonLoading('Đang tải...');
+                try {
+                    const setsSnapshot = await getDocs(query(collection(db, 'study_sets'), where('ownerId', '==', user.id)));
+                    const sets = setsSnapshot.docs.map((setDoc) => setDoc.data());
+                    list.innerHTML = sets.length ? sets.map((set) => `<p><strong>${escapeHTML(set.title || 'Chưa đặt tên')}</strong><span>${Array.isArray(set.words) ? set.words.length : 0} từ · ${escapeHTML(set.publicationStatus || 'private')}</span></p>`).join('') : '<p class="admin-user-no-sets">Người dùng này chưa có bộ thẻ.</p>';
+                    list.hidden = false;
+                } catch (error) { console.error('Không thể tải bộ thẻ của người dùng:', error); showError('Không thể tải bộ thẻ của người dùng.'); }
+                finally { button.disabled = false; button.innerHTML = list.hidden ? '<i class="fa-solid fa-layer-group"></i> Xem bộ thẻ' : '<i class="fa-solid fa-layer-group"></i> Ẩn bộ thẻ'; }
+            });
+            usersGrid.append(card);
+        });
+    } catch (error) { console.error('Không thể tải danh sách người dùng:', error); usersGrid.innerHTML = '<div class="admin-empty"><i class="fa-solid fa-triangle-exclamation"></i><h3>Chưa thể tải người dùng</h3><p>Kiểm tra Firestore Rules rồi thử lại.</p></div>'; }
+}
+
 async function syncAdminAccess(user) {
     const adminLink = document.getElementById('btn-admin-panel');
     if (!user) {
@@ -242,7 +320,9 @@ async function syncAdminAccess(user) {
         if (currentPage === 'admin') {
             if (hasAdminAccess) {
                 document.getElementById('admin-access-state')?.setAttribute('hidden', '');
+                document.getElementById('admin-tabs')?.removeAttribute('hidden');
                 loadAdminReviewQueue();
+                loadAdminUsers();
             } else {
             renderAdminAccessState({ title: 'Bạn chưa có quyền quản trị', description: 'Tài khoản này không được phép kiểm duyệt bộ thẻ cộng đồng.', action: '<a class="btn btn-outline" href="/">Về trang chủ</a>' });
             }
@@ -257,6 +337,15 @@ async function syncAdminAccess(user) {
 
 // XÁC ĐỊNH XEM TRÌNH DUYỆT ĐANG MỞ FILE NÀO
 const currentPage = document.body.getAttribute('data-page');
+
+document.getElementById('admin-tabs')?.addEventListener('click', (event) => {
+    const tab = event.target.closest('[data-admin-tab]');
+    if (!tab) return;
+    const showUsers = tab.dataset.adminTab === 'users';
+    document.querySelectorAll('[data-admin-tab]').forEach((button) => button.classList.toggle('is-active', button === tab));
+    document.getElementById('admin-review-content').hidden = showUsers;
+    document.getElementById('admin-users-content').hidden = !showUsers;
+});
 
 // ============ ERROR HANDLING & VALIDATION ========
 function showToast(message, type = 'success', duration = 3000) {
@@ -727,6 +816,7 @@ if (hamburgerBtn && sidebar) {
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
+        ensureUserProfile(user);
         
         // KIỂM TRA BẢO VỆ: Có nút avatar thì mới đổi hình
         if (avatarBtn) {

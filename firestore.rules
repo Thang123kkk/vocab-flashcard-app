@@ -53,6 +53,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn() && request.auth.uid == userId
+                    && request.resource.data.userId == userId;
+      allow update: if signedIn() && request.auth.uid == userId
+                    && request.resource.data.userId == userId;
+      allow delete: if isAdmin();
+    }
+
     match /user_progress/{progressId} {
       // Tiến độ chỉ thuộc về đúng người dùng đã đăng nhập.
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
