@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trang chủ - Vocab App</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="responsive.css">
     <script>
         if (window.location.pathname.endsWith('/index.html')) {
-            const cleanPath = window.location.pathname.slice(0, -'index.html'.length);
-            window.history.replaceState(window.history.state, '', `${cleanPath}${window.location.search}${window.location.hash}`);
+            const cleanPath = window.location.pathname.replace(/index\.html$/, '') || '/';
+            window.history.replaceState(null, '', `${cleanPath}${window.location.search}${window.location.hash}`);
         }
     </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/responsive.css">
 </head>
 <body data-page="home"> <!-- Dấu hiệu nhận biết trang chủ -->
 
@@ -21,10 +21,10 @@
             <button class="hamburger-btn" id="hamburger-toggle">
                 <i class="fa-solid fa-bars"></i>
             </button>
-            <a class="logo" href="./" aria-label="Về trang chủ"><img src="assets/brand-mark.png" alt=""></a>
+            <a class="logo" href="/" aria-label="Về trang chủ"><img src="/assets/brand-mark.png" alt=""></a>
             <!-- Dùng thẻ a href để chuyển file thực sự -->
-            <a href="./" class="nav-btn active"><i class="fa-solid fa-house"></i> Trang chủ</a>
-            <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
+            <a href="/" class="nav-btn active"><i class="fa-solid fa-house"></i> Trang chủ</a>
+            <a href="/created/" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
             <button class="nav-btn" id="btn-open-guide" type="button" aria-label="Hướng dẫn sử dụng"><i class="fa-regular fa-circle-question"></i> Hướng dẫn</button>
             <button class="nav-btn" id="btn-open-about" type="button" aria-label="Giới thiệu về SuperVocab"><i class="fa-solid fa-circle-info"></i> Giới thiệu</button>
         </div>
@@ -35,7 +35,7 @@
     </header>
 
     <main id="main-container">
-        <a id="review-nudge" class="review-nudge" href="repetition.html" hidden><span class="review-nudge-icon"><i class="fa-solid fa-bell"></i></span><span><strong id="review-nudge-title">Đến giờ ôn tập</strong><small id="review-nudge-message">Bạn có thẻ cần ôn hôm nay.</small></span><i class="fa-solid fa-arrow-right"></i></a>
+        <a id="review-nudge" class="review-nudge" href="/repetition/" hidden><span class="review-nudge-icon"><i class="fa-solid fa-bell"></i></span><span><strong id="review-nudge-title">Đến giờ ôn tập</strong><small id="review-nudge-message">Bạn có thẻ cần ôn hôm nay.</small></span><i class="fa-solid fa-arrow-right"></i></a>
         <div class="dashboard-layout">
             <!-- CỘT TRÁI -->
             <aside class="sidebar-left">
@@ -60,12 +60,12 @@
 
                     <!-- Các nút hành động phụ -->
                     <div class="action-buttons">
-                        <a href="repetition.html" class="btn btn-black w-100 mb-10" data-tooltip="Nơi ôn tập hằng ngày, gồm các từ bạn đã học nhưng chưa nhớ và thuộc." style="text-decoration: none; display: block; text-align: center;">
+                        <a href="/repetition/" class="btn btn-black w-100 mb-10" data-tooltip="Nơi ôn tập hằng ngày, gồm các từ bạn đã học nhưng chưa nhớ và thuộc." style="text-decoration: none; display: block; text-align: center;">
                             <i class="fa-solid fa-calendar-days"></i> Lặp lại ngắt quãng
                         </a>
                         <div class="btn-group">
                             <!-- Nút tạo bộ thẻ này sẽ được gắn link sang trang tạo sau -->
-                            <a href="create.html" class="btn btn-black w-100" data-tooltip="Tạo các bộ từ vựng cá nhân của riêng bạn để học theo mục tiêu." style="text-decoration: none; display: block; text-align: center; padding: 15px 20px; font-size: 16px;"><i class="fa-solid fa-plus"></i> Tạo Bộ thẻ</a>
+                            <a href="/create/" class="btn btn-black w-100" data-tooltip="Tạo các bộ từ vựng cá nhân của riêng bạn để học theo mục tiêu." style="text-decoration: none; display: block; text-align: center; padding: 15px 20px; font-size: 16px;"><i class="fa-solid fa-plus"></i> Tạo Bộ thẻ</a>
                             <button class="btn btn-outline" style="display: none;"><i class="fa-regular fa-map"></i> Tạo lộ trình</button>
                         </div>
                     </div>
@@ -88,7 +88,7 @@
                 <h1 id="home-hero-title">Mỗi ngày một chút,<br>tiến bộ thật nhiều.</h1>
                 <p>Chọn một bộ thẻ để bắt đầu, hoặc tạo chủ đề mới theo mục tiêu của bạn.</p>
             </div>
-            <a href="create.html" class="btn btn-hero"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ</a>
+            <a href="/create/" class="btn btn-hero"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ</a>
         </section>
 
 
@@ -121,7 +121,7 @@
                     <article class="guide-step"><span class="guide-icon guide-icon-blue"><i class="fa-solid fa-clone"></i></span><div><h4>2. Học bằng Flashcard</h4><p>Lật thẻ để kiểm tra trí nhớ. Đánh dấu “Đã thuộc” hoặc “Chưa nhớ” sau mỗi từ.</p></div></article>
                     <article class="guide-step"><span class="guide-icon guide-icon-orange"><i class="fa-solid fa-clock-rotate-left"></i></span><div><h4>3. Ôn tập thông minh</h4><p>Các từ chưa chắc sẽ quay lại vào mục Lặp lại ngắt quãng để bạn ôn trước khi quên.</p></div></article>
                 </div>
-                <div class="guide-footer"><a class="btn btn-black" href="create.html"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ đầu tiên</a><button id="btn-guide-done" class="btn btn-outline" type="button">Đã hiểu</button></div>
+                <div class="guide-footer"><a class="btn btn-black" href="/create/"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ đầu tiên</a><button id="btn-guide-done" class="btn btn-outline" type="button">Đã hiểu</button></div>
             </div>
         </div>
 
@@ -150,13 +150,13 @@
     </div>
 
     <nav class="mobile-tabbar" aria-label="Điều hướng nhanh">
-        <a class="active" href="./" aria-current="page"><i class="fa-solid fa-house"></i><span>Trang chủ</span></a>
-        <a href="created.html"><i class="fa-regular fa-folder-open"></i><span>Bộ thẻ</span></a>
-        <a class="mobile-tabbar-create" href="create.html" aria-label="Tạo bộ thẻ"><i class="fa-solid fa-plus"></i></a>
-        <a href="repetition.html"><i class="fa-solid fa-clock-rotate-left"></i><span>Ôn tập</span></a>
+        <a class="active" href="/" aria-current="page"><i class="fa-solid fa-house"></i><span>Trang chủ</span></a>
+        <a href="/created/"><i class="fa-regular fa-folder-open"></i><span>Bộ thẻ</span></a>
+        <a class="mobile-tabbar-create" href="/create/" aria-label="Tạo bộ thẻ"><i class="fa-solid fa-plus"></i></a>
+        <a href="/repetition/"><i class="fa-solid fa-clock-rotate-left"></i><span>Ôn tập</span></a>
         <button id="mobile-guide" type="button"><i class="fa-regular fa-circle-question"></i><span>Hướng dẫn</span></button>
     </nav>
 
-    <script type="module" src="script.js"></script>
+    <script type="module" src="/script.js"></script>
 </body>
 </html>

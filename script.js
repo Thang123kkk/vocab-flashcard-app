@@ -30,7 +30,7 @@ const setSort = document.getElementById('sort-sets');
 
 const siteFooter = document.createElement('footer');
 siteFooter.className = 'site-footer';
-siteFooter.innerHTML = '<a class="site-footer-brand" href="./" aria-label="Về trang chủ"><img src="assets/brand-mark.png" alt=""> <strong>SuperVocab</strong></a><span>Development by Do Quang Thang</span>';
+siteFooter.innerHTML = '<a class="site-footer-brand" href="/" aria-label="Về trang chủ"><img src="/assets/brand-mark.png" alt=""> <strong>SuperVocab</strong></a><span>Development by Do Quang Thang</span>';
 document.body.append(siteFooter);
 
 const accountDrawer = document.createElement('aside');
@@ -41,7 +41,7 @@ accountDrawer.setAttribute('aria-hidden', 'true');
 accountDrawer.innerHTML = `
     <div class="account-drawer-header"><span>Tài khoản</span><button id="btn-close-account-drawer" type="button" aria-label="Đóng bảng tài khoản"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="account-profile"><div class="account-profile-avatar" id="account-profile-avatar"><i class="fa-solid fa-user"></i></div><div><strong id="account-profile-name">Khách</strong><span id="account-profile-email">Đăng nhập để đồng bộ dữ liệu</span></div></div>
-    <div class="account-drawer-menu"><p>Hệ thống</p><button id="btn-account-settings" type="button"><i class="fa-solid fa-sliders"></i><span>Cài đặt & dữ liệu</span><i class="fa-solid fa-chevron-right menu-arrow"></i></button><a href="created.html"><i class="fa-regular fa-folder-open"></i><span>Bộ thẻ của tôi</span><i class="fa-solid fa-chevron-right menu-arrow"></i></a><a id="btn-admin-panel" href="admin.html" hidden><i class="fa-solid fa-shield-halved"></i><span>Quản trị nội dung</span><i class="fa-solid fa-chevron-right menu-arrow"></i></a></div>
+    <div class="account-drawer-menu"><p>Hệ thống</p><button id="btn-account-settings" type="button"><i class="fa-solid fa-sliders"></i><span>Cài đặt & dữ liệu</span><i class="fa-solid fa-chevron-right menu-arrow"></i></button><a href="/created/"><i class="fa-regular fa-folder-open"></i><span>Bộ thẻ của tôi</span><i class="fa-solid fa-chevron-right menu-arrow"></i></a><a id="btn-admin-panel" href="/admin/" hidden><i class="fa-solid fa-shield-halved"></i><span>Quản trị nội dung</span><i class="fa-solid fa-chevron-right menu-arrow"></i></a></div>
     <div class="account-drawer-footer"><button id="btn-account-logout" type="button"><i class="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất</button></div>
 `;
 const accountDrawerBackdrop = document.createElement('div');
@@ -73,7 +73,7 @@ document.getElementById('btn-account-settings')?.addEventListener('click', () =>
     if (currentPage === 'home') {
         document.getElementById('settings-modal')?.style.setProperty('display', 'flex');
     } else {
-        window.location.href = './#settings';
+        window.location.href = '/#settings';
     }
 });
 
@@ -164,7 +164,7 @@ async function syncAdminAccess(user) {
     if (!user) {
         hasAdminAccess = false;
         if (adminLink) adminLink.hidden = true;
-        if (currentPage === 'admin') renderAdminAccessState({ title: 'Cần đăng nhập', description: 'Hãy đăng nhập bằng tài khoản quản trị để xem hàng chờ xét duyệt.', action: '<a class="btn btn-black" href="./">Về trang chủ</a>' });
+        if (currentPage === 'admin') renderAdminAccessState({ title: 'Cần đăng nhập', description: 'Hãy đăng nhập bằng tài khoản quản trị để xem hàng chờ xét duyệt.', action: '<a class="btn btn-black" href="/">Về trang chủ</a>' });
         return;
     }
     try {
@@ -177,14 +177,14 @@ async function syncAdminAccess(user) {
                 document.getElementById('admin-access-state')?.setAttribute('hidden', '');
                 loadAdminReviewQueue();
             } else {
-                renderAdminAccessState({ title: 'Bạn chưa có quyền quản trị', description: 'Tài khoản này không được phép kiểm duyệt bộ thẻ cộng đồng.', action: '<a class="btn btn-outline" href="./">Về trang chủ</a>' });
+            renderAdminAccessState({ title: 'Bạn chưa có quyền quản trị', description: 'Tài khoản này không được phép kiểm duyệt bộ thẻ cộng đồng.', action: '<a class="btn btn-outline" href="/">Về trang chủ</a>' });
             }
         }
     } catch (error) {
         console.error('Không thể kiểm tra quyền admin:', error);
         hasAdminAccess = false;
         if (adminLink) adminLink.hidden = true;
-        if (currentPage === 'admin') renderAdminAccessState({ title: 'Chưa thể xác thực quyền quản trị', description: 'Vui lòng kiểm tra Firestore Rules và thử lại.', action: '<a class="btn btn-outline" href="./">Về trang chủ</a>' }, 'fa-triangle-exclamation');
+        if (currentPage === 'admin') renderAdminAccessState({ title: 'Chưa thể xác thực quyền quản trị', description: 'Vui lòng kiểm tra Firestore Rules và thử lại.', action: '<a class="btn btn-outline" href="/">Về trang chủ</a>' }, 'fa-triangle-exclamation');
     }
 }
 
@@ -701,7 +701,7 @@ async function loadSets(pageType) {
                     <i class="fa-regular fa-folder-open"></i>
                     <h3>Chưa có bộ thẻ nào</h3>
                     <p>Bắt đầu bằng cách tạo bộ thẻ đầu tiên của bạn để học từ vựng</p>
-                    <a href="create.html" class="btn btn-black" style="text-decoration: none; display: inline-block; margin-top: 15px;">
+                    <a href="/create/" class="btn btn-black" style="text-decoration: none; display: inline-block; margin-top: 15px;">
                         <i class="fa-solid fa-plus"></i> Tạo Bộ thẻ
                     </a>
                 </div>
@@ -762,7 +762,7 @@ async function loadSets(pageType) {
 
             // Cả thẻ là một hành động rõ ràng: chạm/click hoặc Enter/Space để mở bài học.
             const openStudySet = () => {
-                window.location.href = `study.html?id=${docSnap.id}`;
+                window.location.href = `/study/?id=${docSnap.id}`;
             };
             card.addEventListener('click', openStudySet);
             card.addEventListener('keydown', (event) => {
@@ -896,7 +896,7 @@ async function renderForecastChart(userId) {
 
 
     // ==========================================
-// 5. LOGIC RIÊNG CHO TRANG TẠO / SỬA (create.html)
+// 5. LOGIC RIÊNG CHO TRANG TẠO / SỬA
 // ==========================================
 if (currentPage === 'create') {
     const vocabContainer = document.getElementById('vocab-cards-container');
@@ -1083,7 +1083,7 @@ if (currentPage === 'create') {
                     const data = docSnap.data();
                     if (data.ownerId !== user.uid) {
                         showError('Bạn không có quyền chỉnh sửa bộ thẻ này.');
-                        window.setTimeout(() => { window.location.href = 'created.html'; }, 800);
+                        window.setTimeout(() => { window.location.href = '/created/'; }, 800);
                         return;
                     }
                     document.getElementById('set-title').value = data.title;
@@ -1148,14 +1148,14 @@ if (currentPage === 'create') {
             if (editId) {
                 await updateDoc(doc(db, "study_sets", editId), setData);
                 showSuccess(isPublicRequest ? 'Đã cập nhật và gửi lại để admin duyệt.' : 'Cập nhật bộ thẻ thành công!');
-                setTimeout(() => window.location.href = `study.html?id=${editId}`, 500);
+                setTimeout(() => window.location.href = `/study/?id=${editId}`, 500);
             } else {
                 setData.ownerId = currentUser.uid;
                 setData.authorName = currentUser.displayName;
                 setData.timestamp = new Date();
                 await addDoc(collection(db, "study_sets"), setData);
                 showSuccess(isPublicRequest ? 'Đã gửi bộ thẻ chờ admin duyệt.' : 'Tạo bộ thẻ thành công!');
-                setTimeout(() => window.location.href = 'created.html', 800);
+                setTimeout(() => window.location.href = '/created/', 800);
             }
         } catch (error) {
             console.error("Lỗi:", error);
@@ -1244,7 +1244,7 @@ if (currentPage === 'create') {
 }
 
 // ==========================================
-// 6. LOGIC TRANG HỌC FLASHCARD (study.html)
+// 6. LOGIC TRANG HỌC FLASHCARD
 // ==========================================
 
 // ==========================================
@@ -1254,7 +1254,7 @@ if (currentPage === 'create') {
     const btnOpenQuiz = document.getElementById('btn-open-quiz-setup');
 
     if (btnOpenQuiz && quizModal) {
-        // Mở popup không cần check mảng (vì trang quiz.html sẽ tự check)
+            // Mở popup không cần check mảng (vì trang quiz sẽ tự check)
         btnOpenQuiz.addEventListener('click', () => {
             quizModal.style.display = 'flex';
         });
@@ -1272,8 +1272,8 @@ if (currentPage === 'create') {
             const mode = document.getElementById('quiz-mode').value;
             const limit = document.getElementById('quiz-limit').value;
             
-            // Chuyển hướng sang trang quiz.html
-            window.location.href = `quiz.html?id=${currentSetId}&filter=${filter}&mode=${mode}&limit=${limit}`;
+            // Chuyển hướng sang trang quiz
+            window.location.href = `/quiz/?id=${currentSetId}&filter=${filter}&mode=${mode}&limit=${limit}`;
         });
     }
 if (currentPage === 'study') {
@@ -1462,7 +1462,7 @@ if (currentPage === 'study') {
                     if (data.ownerId === currentUser.uid) {
                         const btnEdit = document.getElementById('btn-edit-set');
                         btnEdit.style.display = 'inline-block';
-                        btnEdit.href = `create.html?id=${setId}`; 
+                        btnEdit.href = `/create/?id=${setId}`;
                     }
                 }
 
@@ -1557,7 +1557,7 @@ if (currentPage === 'study') {
 
     onAuthStateChanged(auth, (user) => {
         if (user) { loadStudyData(); } 
-        else { alert("Vui lòng đăng nhập để học!"); window.location.href = "./"; }
+        else { alert("Vui lòng đăng nhập để học!"); window.location.href = "/"; }
     });
 }   
 
@@ -1565,7 +1565,7 @@ if (currentPage === 'study') {
 
 
 // ==========================================
-// 7. LOGIC TRANG LẶP LẠI NGẮT QUÃNG (repetition.html)
+// 7. LOGIC TRANG LẶP LẠI NGẮT QUÃNG
 // ==========================================
 if (currentPage === 'repetition') {
     let dueCards = []; // Mảng 1: Chỉ chứa thẻ cần học NGAY LÚC NÀY
@@ -1862,14 +1862,14 @@ if (currentPage === 'repetition') {
 
     onAuthStateChanged(auth, (user) => {
         if (user) { fetchDueCards(); } 
-        else { alert("Vui lòng đăng nhập!"); window.location.href = "./"; }
+        else { alert("Vui lòng đăng nhập!"); window.location.href = "/"; }
     });
 }
 
 
 
 // ==========================================
-// 8. LOGIC TRANG TRẮC NGHIỆM (quiz.html)
+// 8. LOGIC TRANG TRẮC NGHIỆM
 // ==========================================
 if (currentPage === 'quiz') {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1932,7 +1932,7 @@ if (currentPage === 'quiz') {
 
             if(allWordsInSet.length < 4) {
                 alert("Bộ thẻ cần ít nhất 4 từ để chơi trắc nghiệm!");
-                window.location.href = `study.html?id=${setId}`;
+                window.location.href = `/study/?id=${setId}`;
                 return;
             }
 
@@ -1954,7 +1954,7 @@ if (currentPage === 'quiz') {
 
             if (quizPool.length === 0) {
                 alert("Không có từ vựng nào khớp với bộ lọc của bạn!");
-                window.location.href = `study.html?id=${setId}`;
+                window.location.href = `/study/?id=${setId}`;
                 return;
             }
 
@@ -2113,12 +2113,12 @@ if (currentPage === 'quiz') {
         document.getElementById('quiz-progress-fill').style.width = '100%';
     }
 
-    document.getElementById('btn-quit-quiz').addEventListener('click', () => window.location.href = `study.html?id=${setId}`);
-    document.getElementById('btn-back-to-study').addEventListener('click', () => window.location.href = `study.html?id=${setId}`);
+    document.getElementById('btn-quit-quiz').addEventListener('click', () => window.location.href = `/study/?id=${setId}`);
+    document.getElementById('btn-back-to-study').addEventListener('click', () => window.location.href = `/study/?id=${setId}`);
     document.getElementById('btn-replay').addEventListener('click', () => window.location.reload());
 
     onAuthStateChanged(auth, (user) => {
         if(user) initQuiz();
-        else { alert("Vui lòng đăng nhập!"); window.location.href = "./"; }
+        else { alert("Vui lòng đăng nhập!"); window.location.href = "/"; }
     });
 }
