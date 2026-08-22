@@ -405,6 +405,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .create-page .lookup-status[data-state="loading"] { color: #2563eb; }
 .create-page .lookup-status[data-state="success"] { color: #15803d; }
 .create-page .lookup-status[data-state="error"] { color: #b45309; }
+.create-page .definition-suggestions { margin-top: 8px; padding: 10px; border: 1px solid #bfdbfe; border-radius: 12px; background: #f8fbff; }
+.create-page .definition-suggestions[hidden] { display: none; }
+.create-page .definition-suggestions-title { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px; color: #1d4ed8; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
+.create-page .definition-suggestion-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.create-page .definition-suggestion-option { min-height: 31px; padding: 6px 9px; border: 1px solid #dbeafe; border-radius: 9px; color: #334155; background: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; line-height: 1.25; text-align: left; transition: border-color .18s ease, color .18s ease, background .18s ease; }
+.create-page .definition-suggestion-option:hover, .create-page .definition-suggestion-option.is-selected { border-color: #2563eb; color: #fff; background: #2563eb; }
 
 /* Lưới input chia 2 cột */
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }

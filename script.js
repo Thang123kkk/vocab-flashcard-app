@@ -1011,6 +1011,7 @@ if (currentPage === 'create') {
                     <div class="field-group">
                         <label>Định nghĩa</label>
                         <input type="text" class="field-input input-def" placeholder="VD: Xin chào" value="${escapeHTML(def)}">
+                        <div class="definition-suggestions" hidden aria-live="polite"></div>
                     </div>
                 </div>
                 <div class="field-grid">
@@ -1249,6 +1250,8 @@ if (currentPage === 'create') {
     // TỰ ĐỘNG TRA TỪ: chỉ cập nhật dữ liệu do hệ thống tạo, không ghi đè nội dung người học tự sửa.
     // ==========================================
     const lookupControllers = new WeakMap();
+    const senseSelectionTokens = new WeakMap();
+    const translatedSenseCache = new Map();
     const autoFields = ['.input-def', '.input-pron', '.input-type', '.input-ex', '.input-syn'];
 
     function setLookupStatus(card, message = '', state = '') {
@@ -1259,6 +1262,7 @@ if (currentPage === 'create') {
     }
 
     function clearOutdatedAutoValues(card, word) {
+        clearDefinitionSuggestions(card);
         autoFields.forEach((selector) => {
             const input = card.querySelector(selector);
             if (input?.dataset.autoFilledFor && input.dataset.autoFilledFor !== word) {
@@ -1276,6 +1280,127 @@ if (currentPage === 'create') {
         input.dataset.autoFilledFor = word;
         clearInputValidation(input);
         return true;
+    }
+
+    // Khi đổi nghĩa, chỉ thay dữ liệu do hệ thống điền; nội dung người học nhập tay luôn được giữ lại.
+    function replaceAutoValue(card, selector, value, word, force = false) {
+        const input = card.querySelector(selector);
+        if (!input || (!force && input.value && !input.dataset.autoFilledFor)) return false;
+        if (!value) {
+            if (input.dataset.autoFilledFor === word) {
+                input.value = '';
+                delete input.dataset.autoFilledFor;
+            }
+            return false;
+        }
+        input.value = value;
+        input.dataset.autoFilledFor = word;
+        clearInputValidation(input);
+        return true;
+    }
+
+    function clearDefinitionSuggestions(card) {
+        const suggestions = card.querySelector('.definition-suggestions');
+        if (!suggestions) return;
+        suggestions.replaceChildren();
+        suggestions.hidden = true;
+    }
+
+    function showDefinitionSuggestions(card, suggestions, word, detailsByPart = {}, fallbackDetails = emptyDictionaryDetails(), senseDetails = [], activeDefinition = '') {
+        const container = card.querySelector('.definition-suggestions');
+        if (!container) return;
+
+        const uniqueSuggestions = [];
+        const seen = new Map();
+        suggestions.forEach((suggestion) => {
+            const value = textValue(suggestion?.value || suggestion).replace(/\s+/g, ' ').normalize('NFC');
+            if (!value) return;
+            const key = value.toLocaleLowerCase('vi');
+            const partOfSpeech = textValue(suggestion?.partOfSpeech).toLowerCase();
+            const existing = seen.get(key);
+            if (existing) {
+                // Ưu tiên bản có loại từ: “sách” ở kết quả dịch nhanh sẽ gắn đúng với “danh từ”.
+                if (!existing.partOfSpeech && partOfSpeech) {
+                    existing.partOfSpeech = partOfSpeech;
+                    existing.label = textValue(suggestion?.label) || value;
+                }
+                return;
+            }
+            const normalizedSuggestion = {
+                value,
+                label: textValue(suggestion?.label) || value,
+                partOfSpeech
+            };
+            seen.set(key, normalizedSuggestion);
+            uniqueSuggestions.push(normalizedSuggestion);
+        });
+
+        container.replaceChildren();
+        if (uniqueSuggestions.length < 2) {
+            container.hidden = true;
+            return;
+        }
+
+        const title = document.createElement('span');
+        title.className = 'definition-suggestions-title';
+        title.innerHTML = '<i class="fa-solid fa-list-check"></i> Chọn nghĩa phù hợp';
+        const choices = document.createElement('div');
+        choices.className = 'definition-suggestion-options';
+
+        uniqueSuggestions.slice(0, 6).forEach(({ value, label, partOfSpeech }) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'definition-suggestion-option';
+            button.textContent = label;
+            if (value.toLocaleLowerCase('vi') === textValue(activeDefinition).normalize('NFC').toLocaleLowerCase('vi')) {
+                button.classList.add('is-selected');
+            }
+            button.addEventListener('click', async () => {
+                const definitionInput = card.querySelector('.input-def');
+                if (!definitionInput) return;
+                // Đây là thao tác chọn chủ động nên luôn thay định nghĩa, kể cả khi ô này đã được gõ trước đó.
+                definitionInput.value = value;
+                definitionInput.dataset.autoFilledFor = word;
+                clearInputValidation(definitionInput);
+                choices.querySelectorAll('.definition-suggestion-option').forEach((item) => item.classList.toggle('is-selected', item === button));
+
+                // Tránh giữ bất kỳ thuộc tính nào của nghĩa cũ trong lúc đang tra nghĩa mới.
+                ['.input-pron', '.input-type', '.input-ex', '.input-syn'].forEach((selector) => replaceAutoValue(card, selector, '', word, true));
+                const selectionToken = (senseSelectionTokens.get(card) || 0) + 1;
+                senseSelectionTokens.set(card, selectionToken);
+                setLookupStatus(card, `Đang cập nhật phát âm, loại từ, ví dụ và từ đồng nghĩa cho nghĩa “${value}”…`, 'loading');
+
+                try {
+                    const matchedDetails = await findDetailsForSelectedMeaning(word, value, partOfSpeech, senseDetails);
+                    if (senseSelectionTokens.get(card) !== selectionToken || termInputValue(card) !== word) return;
+
+                    // Nếu chưa ghép được ví dụ chính xác, vẫn cập nhật phát âm/loại từ và để trống ví dụ thay vì dùng ví dụ sai.
+                    const generalDetails = detailsByPart[partOfSpeech] || fallbackDetails;
+                    const selectedDetails = matchedDetails || {
+                        phonetic: generalDetails.phonetic,
+                        partOfSpeech: generalDetails.partOfSpeech,
+                        example: '',
+                        synonyms: ''
+                    };
+                    replaceAutoValue(card, '.input-pron', selectedDetails.phonetic, word, true);
+                    replaceAutoValue(card, '.input-type', selectedDetails.partOfSpeech, word, true);
+                    replaceAutoValue(card, '.input-ex', selectedDetails.example, word, true);
+                    replaceAutoValue(card, '.input-syn', selectedDetails.synonyms, word, true);
+                    const selectedType = selectedDetails.partOfSpeech ? ` (${selectedDetails.partOfSpeech})` : '';
+                    setLookupStatus(card, matchedDetails
+                        ? `Đã chọn nghĩa “${value}”${selectedType} và cập nhật toàn bộ thông tin liên quan.`
+                        : `Đã chọn nghĩa “${value}”${selectedType}. Không có đủ dữ liệu riêng cho nghĩa này; thông tin cũ đã được xóa.`, matchedDetails ? 'success' : 'error');
+                } catch (error) {
+                    if (senseSelectionTokens.get(card) !== selectionToken) return;
+                    console.warn('Không thể cập nhật thuộc tính theo nghĩa đã chọn:', error);
+                    setLookupStatus(card, `Đã chọn nghĩa “${value}”. Không thể tìm dữ liệu phù hợp, nên toàn bộ thông tin cũ đã được xóa.`, 'error');
+                }
+            });
+            choices.appendChild(button);
+        });
+
+        container.append(title, choices);
+        container.hidden = false;
     }
 
     function findDictionaryDetails(entries) {
@@ -1296,23 +1421,135 @@ if (currentPage === 'create') {
         };
     }
 
+    function findDictionaryDetailsByPart(entries) {
+        const detailsByPart = {};
+
+        (entries || []).forEach((entry) => {
+            const phonetic = entry.phonetic || entry.phonetics?.find((item) => item.text)?.text || '';
+            (entry.meanings || []).forEach((meaning) => {
+                const key = textValue(meaning.partOfSpeech).toLowerCase();
+                if (!key) return;
+                const definition = meaning.definitions?.find((item) => item.example) || meaning.definitions?.[0] || {};
+                const synonyms = [...new Set([
+                    ...(meaning.synonyms || []),
+                    ...(definition.synonyms || [])
+                ])].slice(0, 3).join(', ');
+                const candidate = {
+                    phonetic,
+                    partOfSpeech: meaning.partOfSpeech || '',
+                    example: definition.example || '',
+                    synonyms
+                };
+                if (!detailsByPart[key] || dictionaryDetailCount(candidate) > dictionaryDetailCount(detailsByPart[key])) {
+                    detailsByPart[key] = candidate;
+                }
+            });
+        });
+
+        return detailsByPart;
+    }
+
+    function getDictionarySenses(entries) {
+        return (entries || []).flatMap((entry) => {
+            const phonetic = entry.phonetic || entry.phonetics?.find((item) => item.text)?.text || '';
+            return (entry.meanings || []).flatMap((meaning) => (meaning.definitions || []).map((definition) => ({
+                phonetic,
+                partOfSpeech: textValue(meaning.partOfSpeech),
+                definition: textValue(definition.definition),
+                example: textValue(definition.example),
+                synonyms: [...new Set([...(meaning.synonyms || []), ...(definition.synonyms || [])])].slice(0, 3).join(', ')
+            }))).filter((sense) => sense.definition);
+        });
+    }
+
+    function termInputValue(card) {
+        return card.querySelector('.input-term')?.value.trim() || '';
+    }
+
+    function normalizeMeaningText(value) {
+        return textValue(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('vi').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    async function getTranslatedSenses(word, senses) {
+        const cacheKey = `${word.toLocaleLowerCase('en')}|${senses.map((sense) => `${sense.partOfSpeech}:${sense.definition}`).join('\u001f')}`;
+        if (translatedSenseCache.has(cacheKey)) return translatedSenseCache.get(cacheKey);
+
+        const translationPromise = (async () => {
+            const requestText = senses.map((sense, index) => `${sense.definition}\n@@SENSE_${index}@@`).join('\n');
+            const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(requestText)}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const translationData = await response.json();
+            const translated = Array(senses.length).fill('');
+            let currentIndex = 0;
+
+            (translationData?.[0] || []).forEach((part) => {
+                const source = textValue(part?.[1]);
+                const marker = source.match(/@@SENSE_(\d+)@@/);
+                if (marker) {
+                    currentIndex = Number(marker[1]) + 1;
+                    return;
+                }
+                if (currentIndex < translated.length) translated[currentIndex] += textValue(part?.[0]);
+            });
+
+            return senses.map((sense, index) => ({ ...sense, translatedDefinition: translated[index] }));
+        })();
+
+        translatedSenseCache.set(cacheKey, translationPromise);
+        try {
+            return await translationPromise;
+        } catch (error) {
+            translatedSenseCache.delete(cacheKey);
+            throw error;
+        }
+    }
+
+    async function findDetailsForSelectedMeaning(word, selectedMeaning, partOfSpeech, senses) {
+        const candidates = senses.filter((sense) => !partOfSpeech || sense.partOfSpeech.toLowerCase() === partOfSpeech);
+        if (!candidates.length) return null;
+        if (candidates.length === 1) return candidates[0];
+
+        const selectedText = normalizeMeaningText(selectedMeaning);
+        const selectedTokens = selectedText.split(' ').filter((token) => token.length > 1);
+        const translatedSenses = await getTranslatedSenses(word, candidates);
+        const ranked = translatedSenses.map((sense) => {
+            const translatedText = normalizeMeaningText(sense.translatedDefinition);
+            const matchedTokens = selectedTokens.filter((token) => translatedText.includes(token)).length;
+            const exactPhraseBonus = selectedText && translatedText.includes(selectedText) ? 20 : 0;
+            return { sense, score: exactPhraseBonus + matchedTokens };
+        }).sort((left, right) => right.score - left.score);
+
+        return ranked[0]?.score > 0 ? ranked[0].sense : null;
+    }
+
     const emptyDictionaryDetails = () => ({ phonetic: '', partOfSpeech: '', example: '', synonyms: '' });
     const dictionaryDetailCount = (details) => Object.values(details).filter(Boolean).length;
     const waitBeforeLookupRetry = () => new Promise((resolve) => window.setTimeout(resolve, 450));
 
     async function fetchDictionaryDetailsWithRetry(word, signal, maxAttempts = 5) {
         let bestDetails = emptyDictionaryDetails();
+        let bestDetailsByPart = {};
+        let bestSenseDetails = [];
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
                 const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { signal });
 
                 // 404 thường là sai chính tả hoặc từ không có trong từ điển: không gọi lại vô ích.
-                if (response.status === 404) return { details: bestDetails, notFound: true };
+                if (response.status === 404) return { details: bestDetails, detailsByPart: bestDetailsByPart, senseDetails: bestSenseDetails, notFound: true };
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-                const details = findDictionaryDetails(await response.json());
+                const entries = await response.json();
+                const details = findDictionaryDetails(entries);
+                const detailsByPart = findDictionaryDetailsByPart(entries);
+                const senseDetails = getDictionarySenses(entries);
                 if (dictionaryDetailCount(details) > dictionaryDetailCount(bestDetails)) bestDetails = details;
+                if (senseDetails.length > bestSenseDetails.length) bestSenseDetails = senseDetails;
+                Object.entries(detailsByPart).forEach(([partOfSpeech, candidate]) => {
+                    if (!bestDetailsByPart[partOfSpeech] || dictionaryDetailCount(candidate) > dictionaryDetailCount(bestDetailsByPart[partOfSpeech])) {
+                        bestDetailsByPart[partOfSpeech] = candidate;
+                    }
+                });
 
                 // Có ít nhất hai trường bổ sung là phản hồi đủ tin cậy; không cần thử lại thêm.
                 if (dictionaryDetailCount(bestDetails) >= 2) break;
@@ -1323,24 +1560,51 @@ if (currentPage === 'create') {
             if (attempt < maxAttempts - 1) await waitBeforeLookupRetry();
         }
 
-        return { details: bestDetails, notFound: false };
+        return { details: bestDetails, detailsByPart: bestDetailsByPart, senseDetails: bestSenseDetails, notFound: false };
+    }
+
+    function getTranslationSuggestions(translationData, fallback = '') {
+        const suggestions = [];
+        const dictionaryGroups = Array.isArray(translationData?.[1]) ? translationData[1] : [];
+        const partOfSpeechLabels = {
+            verb: 'v', noun: 'n', adjective: 'adj', adverb: 'adv',
+            pronoun: 'pron', preposition: 'prep', conjunction: 'conj', interjection: 'interj'
+        };
+
+        dictionaryGroups.forEach((group) => {
+            const rawPartOfSpeech = textValue(group?.[0]);
+            const partOfSpeech = partOfSpeechLabels[rawPartOfSpeech.toLowerCase()] || rawPartOfSpeech;
+            const candidates = Array.isArray(group?.[1]) ? group[1] : [];
+            candidates.forEach((candidate) => {
+                const value = textValue(Array.isArray(candidate) ? candidate[0] : candidate);
+                if (!value) return;
+                suggestions.push({
+                    value,
+                    label: partOfSpeech ? `${value} · ${partOfSpeech}` : value,
+                    partOfSpeech: rawPartOfSpeech
+                });
+            });
+        });
+
+        if (fallback) suggestions.unshift({ value: fallback, label: fallback, partOfSpeech: '' });
+        return suggestions;
     }
 
     async function fetchTranslationWithRetry(word, signal, maxAttempts = 2) {
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
-                const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(word)}`, { signal });
-                if (!response.ok) return '';
+                const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&dt=bd&q=${encodeURIComponent(word)}`, { signal });
+                if (!response.ok) return { definition: '', suggestions: [] };
                 const translationData = await response.json();
                 const definition = translationData?.[0]?.map((part) => part?.[0]).filter(Boolean).join('') || '';
-                if (definition) return definition;
+                if (definition) return { definition, suggestions: getTranslationSuggestions(translationData, definition) };
             } catch (error) {
                 if (error.name === 'AbortError') throw error;
             }
 
             if (attempt < maxAttempts - 1) await waitBeforeLookupRetry();
         }
-        return '';
+        return { definition: '', suggestions: [] };
     }
 
     async function lookUpVocabulary(termInput) {
@@ -1355,18 +1619,24 @@ if (currentPage === 'create') {
         setLookupStatus(card, 'Đang tìm nghĩa và thông tin từ…', 'loading');
 
         let details = emptyDictionaryDetails();
+        let detailsByPart = {};
+        let senseDetails = [];
         let definitionVi = '';
+        let definitionSuggestions = [];
         let dictionaryNotFound = false;
 
         try {
-            const [dictionaryLookup, translatedDefinition] = await Promise.all([
+            const [dictionaryLookup, translationLookup] = await Promise.all([
                 fetchDictionaryDetailsWithRetry(word, controller.signal),
                 fetchTranslationWithRetry(word, controller.signal)
             ]);
 
             details = dictionaryLookup.details;
+            detailsByPart = dictionaryLookup.detailsByPart;
+            senseDetails = dictionaryLookup.senseDetails;
             dictionaryNotFound = dictionaryLookup.notFound;
-            definitionVi = translatedDefinition;
+            definitionVi = translationLookup.definition;
+            definitionSuggestions = translationLookup.suggestions;
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.warn('Không thể tự động tra từ:', error);
@@ -1382,15 +1652,21 @@ if (currentPage === 'create') {
             details.example && 'ví dụ',
             details.synonyms && 'từ đồng nghĩa'
         ].filter(Boolean);
+        const needsDefinitionChoice = definitionSuggestions.length > 1;
+        showDefinitionSuggestions(card, definitionSuggestions, word, detailsByPart, details, senseDetails, definitionVi);
+        // Luồng mặc định vẫn như trước: điền nghĩa đầu tiên và các thuộc tính ngay khi tra xong.
+        const detailsToApply = details;
         const updated = [
             applyAutoValue(card, '.input-def', definitionVi, word),
-            applyAutoValue(card, '.input-pron', details.phonetic, word),
-            applyAutoValue(card, '.input-type', details.partOfSpeech, word),
-            applyAutoValue(card, '.input-ex', details.example, word),
-            applyAutoValue(card, '.input-syn', details.synonyms, word)
+            applyAutoValue(card, '.input-pron', detailsToApply.phonetic, word),
+            applyAutoValue(card, '.input-type', detailsToApply.partOfSpeech, word),
+            applyAutoValue(card, '.input-ex', detailsToApply.example, word),
+            applyAutoValue(card, '.input-syn', detailsToApply.synonyms, word)
         ].some(Boolean);
 
-        if (updated && foundFields.length === 5) {
+        if (needsDefinitionChoice) {
+            setLookupStatus(card, `Tìm thấy ${definitionSuggestions.length} nghĩa. Hãy chọn nghĩa phù hợp ở ô Định nghĩa.`, 'success');
+        } else if (updated && foundFields.length === 5) {
             setLookupStatus(card, 'Đã cập nhật đầy đủ thông tin tự động.', 'success');
         } else if (updated && dictionaryNotFound) {
             setLookupStatus(card, 'Đã dịch nghĩa nhưng không nhận diện được từ trong từ điển. Hãy kiểm tra lại chính tả.', 'error');
