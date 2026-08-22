@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="responsive.css">
+    <script>
+        if (window.location.pathname.endsWith('/index.html')) {
+            const cleanPath = window.location.pathname.slice(0, -'index.html'.length);
+            window.history.replaceState(window.history.state, '', `${cleanPath}${window.location.search}${window.location.hash}`);
+        }
+    </script>
 </head>
 <body data-page="home"> <!-- Dấu hiệu nhận biết trang chủ -->
 
@@ -17,7 +23,7 @@
             </button>
             <div class="logo">📚</div>
             <!-- Dùng thẻ a href để chuyển file thực sự -->
-            <a href="index.html" class="nav-btn active"><i class="fa-solid fa-house"></i> Trang chủ</a>
+            <a href="./" class="nav-btn active"><i class="fa-solid fa-house"></i> Trang chủ</a>
             <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
             <button class="nav-btn" id="btn-open-guide" type="button" aria-label="Hướng dẫn sử dụng"><i class="fa-regular fa-circle-question"></i> Hướng dẫn</button>
         </div>

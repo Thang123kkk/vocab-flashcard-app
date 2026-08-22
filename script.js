@@ -1000,7 +1000,7 @@ if (currentPage === 'study') {
 
     onAuthStateChanged(auth, (user) => {
         if (user) { loadStudyData(); } 
-        else { alert("Vui lòng đăng nhập để học!"); window.location.href="index.html"; }
+        else { alert("Vui lòng đăng nhập để học!"); window.location.href = "./"; }
     });
 }   
 
@@ -1274,7 +1274,7 @@ if (currentPage === 'repetition') {
 
     onAuthStateChanged(auth, (user) => {
         if (user) { fetchDueCards(); } 
-        else { alert("Vui lòng đăng nhập!"); window.location.href="index.html"; }
+        else { alert("Vui lòng đăng nhập!"); window.location.href = "./"; }
     });
 }
 
@@ -1523,6 +1523,6 @@ if (currentPage === 'quiz') {
 
     onAuthStateChanged(auth, (user) => {
         if(user) initQuiz();
-        else { alert("Vui lòng đăng nhập!"); window.location.href="index.html"; }
+        else { alert("Vui lòng đăng nhập!"); window.location.href = "./"; }
     });
 }
