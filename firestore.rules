@@ -36,8 +36,8 @@ service cloud.firestore {
     match /study_sets/{setId} {
       // Chỉ bộ thẻ đã được admin duyệt (isPublic) mới hiện với cộng đồng.
       // Chủ sở hữu và admin vẫn xem được các bộ thẻ đang chờ duyệt.
-      allow read: if signedIn()
-        && (resource.data.isPublic == true || ownsExistingSet() || isAdmin());
+      allow read: if resource.data.isPublic == true
+        || (signedIn() && (ownsExistingSet() || isAdmin()));
       // User chỉ tạo bộ thẻ riêng tư hoặc gửi vào hàng chờ duyệt.
       allow create: if signedIn() && isUserSubmission();
       // User không thể tự đặt isPublic = true hoặc publicationStatus = approved.

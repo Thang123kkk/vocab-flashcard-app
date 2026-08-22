@@ -563,20 +563,25 @@ input:checked + .slider:before { transform: translateX(20px); }
 /* Hướng dẫn sử dụng */
 .guide-modal-content { max-width: 620px; }.guide-eyebrow { margin-bottom: 2px; color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }.guide-intro { margin: 8px 0 22px; color: var(--gray-600); }.guide-steps { display: grid; gap: 12px; }.guide-step { display: flex; align-items: flex-start; gap: 14px; padding: 14px; border: 1px solid #e8edf5; border-radius: 14px; background: #fafbff; }.guide-step h4 { color: var(--gray-900); font-size: 15px; }.guide-step p { margin-top: 3px; color: var(--gray-600); font-size: 13px; line-height: 1.5; }.guide-icon { display: grid; flex: 0 0 38px; width: 38px; height: 38px; place-items: center; border-radius: 11px; }.guide-icon-purple { color: #6d28d9; background: #ede9fe; }.guide-icon-blue { color: #2563eb; background: #dbeafe; }.guide-icon-orange { color: #c2410c; background: #ffedd5; }.guide-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }.guide-footer a { text-decoration: none; }
 .about-modal-content { max-width: 760px; }.about-modal-lead { margin: 8px 0 20px; color: #475569; font-size: 15px; line-height: 1.6; }.about-modal-sections { display: grid; gap: 12px; }.about-modal-section { display: grid; grid-template-columns: 39px minmax(0, 1fr); gap: 13px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 15px; background: #fbfdff; }.about-modal-index { display: grid; width: 39px; height: 39px; place-items: center; border-radius: 12px; color: #1d4ed8; background: #dbeafe; font-size: 12px; font-weight: 800; }.about-modal-index-red { color: #dc2626; background: #fee2e2; }.about-modal-index-dark { color: #fff; background: #111827; }.about-modal-section h4 { margin: 2px 0 7px; color: #111827; font-size: 16px; }.about-modal-section p { margin-top: 9px; color: #64748b; font-size: 13px; line-height: 1.62; }.about-modal-section p:first-of-type { margin-top: 0; }
+.welcome-modal-content { max-width: 580px; }.welcome-modal-lead { margin: 8px 0 18px; color: #475569; font-size: 14px; line-height: 1.6; }.welcome-steps { display: grid; gap: 9px; }.welcome-steps > div { display: flex; align-items: flex-start; gap: 11px; padding: 12px; border: 1px solid #dbeafe; border-radius: 14px; background: #f8fbff; }.welcome-steps span { display: grid; flex: 0 0 29px; width: 29px; height: 29px; place-items: center; border-radius: 9px; color: #fff; background: #2563eb; font-size: 12px; font-weight: 800; }.welcome-steps p { display: grid; gap: 2px; }.welcome-steps strong { color: #1f2937; font-size: 14px; }.welcome-steps small { color: #64748b; font-size: 12px; line-height: 1.45; }
 
 /* Popup Hướng dẫn / Giới thiệu: giữ phần đầu rõ ràng khi nội dung dài. */
 .guide-modal-content .modal-header,
-.about-modal-content .modal-header { position: sticky; top: -26px; z-index: 2; margin: -26px -26px 14px; padding: 24px 26px 12px; background: linear-gradient(180deg, #fff 78%, rgba(255,255,255,.92)); }
+.about-modal-content .modal-header,
+.welcome-modal-content .modal-header { position: sticky; top: -26px; z-index: 2; margin: -26px -26px 14px; padding: 24px 26px 12px; background: linear-gradient(180deg, #fff 78%, rgba(255,255,255,.92)); }
 .guide-modal-content .close-btn,
-.about-modal-content .close-btn { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; border: 1px solid #e2e8f0; border-radius: 11px; color: #475569; background: #f8fafc; font-size: 16px; }
+.about-modal-content .close-btn,
+.welcome-modal-content .close-btn { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; border: 1px solid #e2e8f0; border-radius: 11px; color: #475569; background: #f8fafc; font-size: 16px; }
 .guide-modal-content .close-btn:hover,
-.about-modal-content .close-btn:hover { color: #fff; border-color: #111827; background: #111827; }
+.about-modal-content .close-btn:hover,
+.welcome-modal-content .close-btn:hover { color: #fff; border-color: #111827; background: #111827; }
 
 @media (max-width: 640px) {
     /* Bottom sheet có chiều cao phù hợp Safari mobile và không che nút đóng. */
     body[data-page="home"] .modal-overlay { align-items: flex-end; padding: 10px; }
     body[data-page="home"] .guide-modal-content,
-    body[data-page="home"] .about-modal-content {
+    body[data-page="home"] .about-modal-content,
+    body[data-page="home"] .welcome-modal-content {
         width: 100%;
         max-height: min(84dvh, 720px);
         padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
@@ -584,7 +589,8 @@ input:checked + .slider:before { transform: translateX(20px); }
         overscroll-behavior: contain;
     }
     body[data-page="home"] .guide-modal-content .modal-header,
-    body[data-page="home"] .about-modal-content .modal-header {
+    body[data-page="home"] .about-modal-content .modal-header,
+    body[data-page="home"] .welcome-modal-content .modal-header {
         top: -18px;
         align-items: flex-start;
         gap: 10px;

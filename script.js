@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 import { getFirestore, collection, getDocs, deleteDoc, doc, query, where ,addDoc,getDoc,setDoc,updateDoc    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
 // COPY LẠI CONFIG CỦA BẠN VÀO ĐÂY
 const firebaseConfig = {
@@ -19,6 +19,7 @@ const provider = new GoogleAuthProvider();
 
 let currentUser = null;
 let hasAdminAccess = false;
+const NEW_USER_WELCOME_KEY = 'supervocab:new-user-welcome';
 const avatarBtn = document.getElementById('nav-avatar');
 const grid = document.getElementById('learning-sets-grid');
 const searchModal = document.getElementById('search-modal');
@@ -60,6 +61,36 @@ function openAccountDrawer() {
     accountDrawerBackdrop.classList.add('is-open');
     accountDrawer.setAttribute('aria-hidden', 'false');
     document.getElementById('btn-close-account-drawer')?.focus();
+}
+
+function requestSignIn(feature = 'sử dụng tính năng này') {
+    showError(`Hãy đăng nhập để ${feature}.`);
+}
+
+async function startGoogleSignIn() {
+    try {
+        const credential = await signInWithPopup(auth, provider);
+        if (getAdditionalUserInfo(credential)?.isNewUser) {
+            sessionStorage.setItem(NEW_USER_WELCOME_KEY, credential.user.uid);
+            showNewUserWelcome(credential.user);
+        }
+    } catch (error) {
+        console.error('Không thể đăng nhập:', error);
+        showError('Không thể đăng nhập. Vui lòng thử lại.');
+    }
+}
+
+function showNewUserWelcome(user) {
+    if (currentPage !== 'home' || !user) return;
+    const welcomeModal = document.getElementById('new-user-welcome-modal');
+    if (!welcomeModal) return;
+    const hasPendingWelcome = sessionStorage.getItem(NEW_USER_WELCOME_KEY) === user.uid;
+    const hasSeenWelcome = localStorage.getItem(`${NEW_USER_WELCOME_KEY}:${user.uid}`) === 'seen';
+    if (!hasPendingWelcome || hasSeenWelcome) return;
+
+    sessionStorage.removeItem(NEW_USER_WELCOME_KEY);
+    localStorage.setItem(`${NEW_USER_WELCOME_KEY}:${user.uid}`, 'seen');
+    welcomeModal.style.display = 'flex';
 }
 
 document.getElementById('btn-close-account-drawer')?.addEventListener('click', closeAccountDrawer);
@@ -413,8 +444,8 @@ function textValue(value) {
 // Chấp nhận cả dữ liệu cũ (def/meaning/word) để bộ thẻ tạo từ các phiên bản trước vẫn học được.
 function normalizeVocabularyWord(word) {
     if (!word || typeof word !== 'object') return null;
-    const term = textValue(word.term || word.word || word.front);
-    const definition = textValue(word.definition || word.def || word.meaning || word.translation || word.back);
+    const term = textValue(word.term || word.word || word.front || word.english || word.en);
+    const definition = textValue(word.definition || word.def || word.meaning || word.mean || word.translation || word.back || word.vietnamese || word.vi);
     if (!term || !definition) return null;
 
     return {
@@ -641,6 +672,7 @@ onAuthStateChanged(auth, (user) => {
         if (currentPage === 'home') {
             updateTodayWordsDisplay(user.uid);
             renderForecastChart(user.uid); // KÍCH HOẠT BIỂU ĐỒ 7 NGÀY TẠI ĐÂY
+            showNewUserWelcome(user);
         }
     } else {
         currentUser = null;
@@ -649,29 +681,21 @@ onAuthStateChanged(auth, (user) => {
         document.getElementById('account-profile-name').textContent = 'Khách';
         document.getElementById('account-profile-email').textContent = 'Đăng nhập để đồng bộ dữ liệu';
         document.getElementById('account-profile-avatar').innerHTML = '<i class="fa-solid fa-user"></i>';
-        if (grid) {
-            const emptyHTML = `
-                <div class="empty-state" style="grid-column: 1 / -1;">
-                    <i class="fa-solid fa-lock"></i>
-                    <h3>Vui lòng đăng nhập</h3>
-                    <p>Đăng nhập để xem và tạo bộ thẻ học từ vựng</p>
-                </div>
-            `;
-            grid.innerHTML = emptyHTML;
-        }
+        if (currentPage === 'home') loadSets('home');
+        else if (currentPage === 'created') loadSets('created');
     }
 });
 
 // KIỂM TRA BẢO VỆ: Có nút avatar thì mới gắn sự kiện click
 if (avatarBtn) {
     avatarBtn.addEventListener('click', () => {
-        if (!currentUser) signInWithPopup(auth, provider);
+        if (!currentUser) startGoogleSignIn();
         else openAccountDrawer();
     });
     avatarBtn.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            if (!currentUser) signInWithPopup(auth, provider);
+            if (!currentUser) startGoogleSignIn();
             else openAccountDrawer();
         }
     });
@@ -755,7 +779,17 @@ if (currentPage === 'home') {
 
 // 2. TẢI VÀ VẼ LƯỚI
 async function loadSets(pageType) {
-    if (!currentUser || !grid) return;
+    if (!grid) return;
+    if (pageType === 'created' && !currentUser) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-lock"></i><h3>Bộ thẻ của bạn đang chờ</h3><p>Đăng nhập để xem, chỉnh sửa và quản lý các bộ thẻ riêng.</p><button id="btn-sign-in-created" class="btn btn-black" type="button"><i class="fa-brands fa-google"></i> Đăng nhập</button></div>';
+        document.getElementById('btn-sign-in-created')?.addEventListener('click', () => startGoogleSignIn());
+        return;
+    }
+
+    const newUserWelcomeModal = document.getElementById('new-user-welcome-modal');
+    const closeNewUserWelcome = () => { if (newUserWelcomeModal) newUserWelcomeModal.style.display = 'none'; };
+    document.getElementById('btn-close-new-user-welcome')?.addEventListener('click', closeNewUserWelcome);
+    document.getElementById('btn-welcome-browse')?.addEventListener('click', closeNewUserWelcome);
     grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-spinner fa-spin"></i><p>Đang tải bộ thẻ...</p></div>';
 
     try {
@@ -767,10 +801,10 @@ async function loadSets(pageType) {
         }
 
         // Tải tiến độ một lần rồi ghép với từng bộ thẻ. Trước đây UI luôn ghi cứng 0 từ/0%.
-        const progressQuery = query(collection(db, "user_progress"), where("userId", "==", currentUser.uid));
-        const [querySnapshot, progressSnapshot] = await Promise.all([getDocs(q), getDocs(progressQuery)]);
+        const progressQuery = currentUser ? query(collection(db, "user_progress"), where("userId", "==", currentUser.uid)) : null;
+        const [querySnapshot, progressSnapshot] = await Promise.all([getDocs(q), progressQuery ? getDocs(progressQuery) : Promise.resolve(null)]);
         const progressBySetId = new Map();
-        progressSnapshot.forEach((progressDoc) => {
+        progressSnapshot?.forEach((progressDoc) => {
             const progress = progressDoc.data();
             if (progress.setId) progressBySetId.set(progress.setId, progress.learnedCards || {});
         });
@@ -793,7 +827,7 @@ async function loadSets(pageType) {
 
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const isMine = (data.ownerId === currentUser.uid);
+            const isMine = Boolean(currentUser && data.ownerId === currentUser.uid);
             const totalWords = Array.isArray(data.words) ? data.words.length : 0;
             const learnedCards = progressBySetId.get(docSnap.id) || {};
             const studiedCount = Object.values(learnedCards).filter((cardProgress) =>
@@ -1729,17 +1763,63 @@ if (currentPage === 'create') {
             quizModal.style.display = 'none';
         });
         
-        document.getElementById('btn-start-quiz')?.addEventListener('click', () => {
+        document.getElementById('btn-start-quiz')?.addEventListener('click', async (event) => {
+            const startButton = event.currentTarget;
             // Tự lấy ID từ URL hiện tại luôn cho an toàn
             const currentUrlParams = new URLSearchParams(window.location.search);
             const currentSetId = currentUrlParams.get('id');
-            
             const filter = document.getElementById('quiz-filter').value;
             const mode = document.getElementById('quiz-mode').value;
             const limit = document.getElementById('quiz-limit').value;
-            
-            // Chuyển hướng sang trang quiz
-            window.location.href = `/quiz/?id=${currentSetId}&filter=${filter}&mode=${mode}&limit=${limit}`;
+
+            if (!currentSetId) return showError('Không tìm thấy bộ thẻ để tạo Quiz.');
+            if (!currentUser && filter !== 'all') {
+                requestSignIn('lọc từ theo tiến độ học');
+                return;
+            }
+
+            const originalText = startButton.innerHTML;
+            startButton.disabled = true;
+            startButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kiểm tra...';
+            try {
+                const setSnapshot = await getDoc(doc(db, 'study_sets', currentSetId));
+                if (!setSnapshot.exists()) throw new Error('Bộ thẻ không tồn tại.');
+
+                const validWords = (Array.isArray(setSnapshot.data().words) ? setSnapshot.data().words : [])
+                    .map((word, originalIndex) => ({ word: normalizeVocabularyWord(word), originalIndex }))
+                    .filter((item) => item.word);
+                let learnedCards = {};
+                if (currentUser && filter !== 'all') {
+                    const progressSnapshot = await getDoc(doc(db, 'user_progress', `${currentUser.uid}_${currentSetId}`));
+                    const storedProgress = progressSnapshot.exists() ? progressSnapshot.data().learnedCards : null;
+                    learnedCards = storedProgress && typeof storedProgress === 'object' ? storedProgress : {};
+                }
+
+                const availableCount = validWords.filter(({ originalIndex }) => {
+                    const isLearned = learnedCards[originalIndex]?.status === 'learned';
+                    return filter === 'all' || (filter === 'learned' ? isLearned : !isLearned);
+                }).length;
+                if (availableCount < 4) {
+                    showError(`Bộ lọc hiện chỉ có ${availableCount} từ hợp lệ. Quiz cần ít nhất 4 từ để tạo đáp án.`);
+                    return;
+                }
+
+                const requestedCount = limit === 'all' ? availableCount : Number(limit);
+                let effectiveLimit = limit;
+                if (requestedCount > availableCount) {
+                    const accepted = window.confirm(`Bộ lọc chỉ có ${availableCount} từ, ít hơn ${requestedCount} câu bạn đã chọn. Bạn có muốn tiếp tục làm ${availableCount} câu không?`);
+                    if (!accepted) return;
+                    effectiveLimit = String(availableCount);
+                }
+
+                window.location.href = `/quiz/?id=${encodeURIComponent(currentSetId)}&filter=${encodeURIComponent(filter)}&mode=${encodeURIComponent(mode)}&limit=${encodeURIComponent(effectiveLimit)}`;
+            } catch (error) {
+                console.error('Không thể kiểm tra bộ lọc Quiz:', error);
+                showError(error.message || 'Không thể kiểm tra số lượng từ. Vui lòng thử lại.');
+            } finally {
+                startButton.disabled = false;
+                startButton.innerHTML = originalText;
+            }
         });
     }
 if (currentPage === 'study') {
@@ -1915,6 +1995,11 @@ if (currentPage === 'study') {
             
             if (docSnap.exists()) {
                 const data = docSnap.data();
+                if (!currentUser && data.isPublic !== true) {
+                    showStudyEmptyState('Bộ thẻ này là nội dung riêng tư.');
+                    requestSignIn('mở bộ thẻ riêng tư');
+                    return;
+                }
                 document.getElementById('study-set-title').textContent = data.title;
                 wordsArray = normalizeVocabularyWords(data.words);
                 currentIndex = 0;
@@ -2008,6 +2093,7 @@ if (currentPage === 'study') {
     // --- CẬP NHẬT: LOGIC PHÂN LOẠI SM-2 KHI BẤM NÚT ---
     document.getElementById('btn-fail').addEventListener('click', () => {
         if (!wordsArray[currentIndex]) return;
+        if (!currentUser) return requestSignIn('lưu từ vào Lặp lại ngắt quãng');
         
         // Lấy chính xác thời gian hiện tại để thẻ đáo hạn ngay lập tức
         let nextDate = new Date(); 
@@ -2029,6 +2115,7 @@ if (currentPage === 'study') {
     
     document.getElementById('btn-pass').addEventListener('click', () => {
         if (!wordsArray[currentIndex]) return;
+        if (!currentUser) return requestSignIn('lưu tiến độ học');
         // Nút "Đã thuộc" -> Đóng gói cất đi, không đưa vào SRS
         studyProgress[currentIndex] = {
             status: 'learned'
@@ -2050,8 +2137,7 @@ if (currentPage === 'study') {
     });
 
     onAuthStateChanged(auth, (user) => {
-        if (user) { loadStudyData(); } 
-        else { alert("Vui lòng đăng nhập để học!"); window.location.href = "/"; }
+        loadStudyData();
     });
 }   
 
@@ -2431,6 +2517,7 @@ if (currentPage === 'quiz') {
     let currentStreak = 0;
     let bestStreak = 0;
     let hasAnsweredCurrentQuestion = false;
+    let quizInitialized = false;
 
     const actionBar = document.getElementById('quiz-action-bar');
     const btnNext = document.getElementById('btn-quiz-next');
@@ -2447,50 +2534,97 @@ if (currentPage === 'quiz') {
     }
 
     // 1. TẠO ĐÁP ÁN NHIỄU
-    function generateDistractors(correctWord, poolToPick) {
-        let options = [correctWord];
-        let available = poolToPick.filter(w => w.term !== correctWord.term);
+    function shuffleQuizItems(items) {
+        for (let index = items.length - 1; index > 0; index--) {
+            const randomIndex = Math.floor(Math.random() * (index + 1));
+            [items[index], items[randomIndex]] = [items[randomIndex], items[index]];
+        }
+        return items;
+    }
+
+    function generateDistractors(correctWord, poolToPick, answerField) {
+        const correctAnswer = textValue(correctWord[answerField]).toLocaleLowerCase('vi-VN');
+        const seenAnswers = new Set([correctAnswer]);
+        const available = shuffleQuizItems(poolToPick.filter((word) => {
+            const answer = textValue(word[answerField]).toLocaleLowerCase('vi-VN');
+            if (!answer || seenAnswers.has(answer)) return false;
+            seenAnswers.add(answer);
+            return true;
+        }));
+        const options = [correctWord];
         
         if (correctWord.type) {
             let sameType = available.filter(w => w.type === correctWord.type);
-            sameType.sort(() => Math.random() - 0.5);
             while(options.length < 4 && sameType.length > 0) {
                 options.push(sameType.pop());
-                available = available.filter(w => w.term !== options[options.length-1].term);
+                const selected = options[options.length - 1];
+                const selectedIndex = available.indexOf(selected);
+                if (selectedIndex >= 0) available.splice(selectedIndex, 1);
             }
         }
 
-        available.sort(() => Math.random() - 0.5);
         while(options.length < 4 && available.length > 0) {
             options.push(available.pop());
         }
-        return options.sort(() => Math.random() - 0.5);
+        return options.length === 4 ? shuffleQuizItems(options) : [];
+    }
+
+    function showQuizError(message) {
+        document.getElementById('quiz-question-text').textContent = 'Chưa thể tạo câu hỏi';
+        const hint = document.getElementById('quiz-question-hint');
+        hint.textContent = message;
+        hint.style.display = 'block';
+        document.getElementById('quiz-options-grid').innerHTML = '';
+        actionBar.style.display = 'none';
+        audioButton.classList.remove('visible');
     }
 
     // 2. KHỞI TẠO BÀI THI
     async function initQuiz() {
         if (!setId) return alert("Lỗi ID bộ thẻ!");
+        if (quizInitialized) return;
         try {
             const docSnap = await getDoc(doc(db, "study_sets", setId));
             if (!docSnap.exists()) return alert("Bộ thẻ không tồn tại.");
-            allWordsInSet = docSnap.data().words || [];
+            const setData = docSnap.data();
+            if (!currentUser && setData.isPublic !== true) {
+                requestSignIn('làm trắc nghiệm với bộ thẻ riêng tư');
+                window.location.href = '/';
+                return;
+            }
+            quizInitialized = true;
+            // Bộ thẻ cũ có thể lưu các khóa như english/vietnamese hoặc def/meaning.
+            // Chuẩn hóa trước khi tạo Quiz để một thẻ lỗi không làm cả phiên bị kẹt.
+            allWordsInSet = (Array.isArray(setData.words) ? setData.words : [])
+                .map((word, index) => {
+                    const normalized = normalizeVocabularyWord(word);
+                    return normalized ? { ...normalized, originalIndex: index } : null;
+                })
+                .filter(Boolean);
 
             if(allWordsInSet.length < 4) {
-                alert("Bộ thẻ cần ít nhất 4 từ để chơi trắc nghiệm!");
-                window.location.href = `/study/?id=${setId}`;
+                showQuizError('Bộ thẻ cần ít nhất 4 từ có đủ thuật ngữ và định nghĩa để làm trắc nghiệm.');
                 return;
             }
 
             let learnedStatus = {};
-            if (currentUser) {
-                const progSnap = await getDoc(doc(db, "user_progress", `${currentUser.uid}_${setId}`));
-                if (progSnap.exists()) learnedStatus = progSnap.data().learnedCards || {};
+            // Luyện toàn bộ từ không cần tải SRS. Nhờ vậy một dữ liệu tiến độ cũ/lỗi
+            // sẽ không thể chặn toàn bộ bài Quiz của bộ thẻ.
+            if (currentUser && filterType !== 'all') {
+                try {
+                    const progSnap = await getDoc(doc(db, "user_progress", `${currentUser.uid}_${setId}`));
+                    const savedCards = progSnap.exists() ? progSnap.data().learnedCards : null;
+                    learnedStatus = savedCards && typeof savedCards === 'object' ? savedCards : {};
+                } catch (progressError) {
+                    console.warn('Không thể đọc tiến độ Quiz, dùng dữ liệu mặc định:', progressError);
+                    learnedStatus = {};
+                }
             }
 
             // Gắn originalIndex để biết từ này nằm ở đâu trong mảng gốc
-            allWordsInSet.forEach((word, index) => {
-                const isLearned = learnedStatus[index] && learnedStatus[index].status === 'learned';
-                const wordObj = { wordData: word, originalIndex: index };
+            allWordsInSet.forEach((word) => {
+                const isLearned = learnedStatus[word.originalIndex] && learnedStatus[word.originalIndex].status === 'learned';
+                const wordObj = { wordData: word, originalIndex: word.originalIndex };
                 
                 if (filterType === 'all') quizPool.push(wordObj);
                 else if (filterType === 'learned' && isLearned) quizPool.push(wordObj);
@@ -2498,29 +2632,42 @@ if (currentPage === 'quiz') {
             });
 
             if (quizPool.length === 0) {
-                alert("Không có từ vựng nào khớp với bộ lọc của bạn!");
-                window.location.href = `/study/?id=${setId}`;
+                showQuizError('Không có từ vựng nào khớp với bộ lọc đã chọn.');
                 return;
             }
 
-            quizPool.sort(() => Math.random() - 0.5); 
+            quizPool = shuffleQuizItems(quizPool);
             if (limit !== 'all' && quizPool.length > parseInt(limit)) {
                 quizPool = quizPool.slice(0, parseInt(limit));
             }
 
-            questions = quizPool.map(item => {
-                const options = generateDistractors(item.wordData, allWordsInSet);
-                let qMode = mode === 'mixed' ? (Math.random() > 0.5 ? 'en-vi' : 'vi-en') : mode;
-                return {
-                    mode: qMode,
-                    correctWord: item.wordData,
-                    originalIndex: item.originalIndex,
-                    options: options
+            questions = quizPool.map((item) => {
+                try {
+                const preferredMode = mode === 'mixed' ? (Math.random() > 0.5 ? 'en-vi' : 'vi-en') : mode;
+                const buildQuestion = (qMode) => {
+                    const answerField = qMode === 'en-vi' ? 'definition' : 'term';
+                    const options = generateDistractors(item.wordData, allWordsInSet, answerField);
+                    return options.length === 4 ? { mode: qMode, correctWord: item.wordData, originalIndex: item.originalIndex, options } : null;
                 };
-            });
+                return buildQuestion(preferredMode) || (mode === 'mixed'
+                    ? buildQuestion(preferredMode === 'en-vi' ? 'vi-en' : 'en-vi')
+                    : null);
+                } catch (questionError) {
+                    console.warn('Bỏ qua một thẻ không thể tạo câu hỏi:', questionError);
+                    return null;
+                }
+            }).filter(Boolean);
+
+            if (!questions.length) {
+                showQuizError('Bộ thẻ chưa có đủ 4 đáp án khác nhau để tạo câu hỏi. Hãy bổ sung thêm từ hoặc định nghĩa.');
+                return;
+            }
 
             renderQuestion();
-        } catch (e) { console.error("Lỗi:", e); }
+        } catch (e) {
+            console.error("Lỗi khởi tạo Quiz:", e);
+            showQuizError('Đã xảy ra lỗi khi đọc dữ liệu bộ thẻ. Vui lòng thử lại hoặc kiểm tra lại các thẻ từ.');
+        }
     }
 
     // 3. VẼ CÂU HỎI
@@ -2604,7 +2751,7 @@ if (currentPage === 'quiz') {
 
     // 4. CẬP NHẬT TIẾN ĐỘ TRỰC TIẾP TỪ QUIZ
     async function updateWordStatus(statusType, btnElement) {
-        if (!currentUser) return alert("Vui lòng đăng nhập!");
+        if (!currentUser) return requestSignIn(statusType === 'reviewing' ? 'đưa từ vào Lặp lại ngắt quãng' : 'lưu từ đã thuộc');
         const qData = questions[currentQuestionIndex];
         const progressRef = doc(db, "user_progress", `${currentUser.uid}_${setId}`);
         
@@ -2663,7 +2810,6 @@ if (currentPage === 'quiz') {
     document.getElementById('btn-replay').addEventListener('click', () => window.location.reload());
 
     onAuthStateChanged(auth, (user) => {
-        if(user) initQuiz();
-        else { alert("Vui lòng đăng nhập!"); window.location.href = "/"; }
+        initQuiz();
     });
 }

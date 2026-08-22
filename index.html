@@ -66,7 +66,6 @@
                         <div class="btn-group">
                             <!-- Nút tạo bộ thẻ này sẽ được gắn link sang trang tạo sau -->
                             <a href="/create/" class="btn btn-black w-100" data-tooltip="Tạo các bộ từ vựng cá nhân của riêng bạn để học theo mục tiêu." style="text-decoration: none; display: block; text-align: center; padding: 15px 20px; font-size: 16px;"><i class="fa-solid fa-plus"></i> Tạo Bộ thẻ</a>
-                            <button class="btn btn-outline" style="display: none;"><i class="fa-regular fa-map"></i> Tạo lộ trình</button>
                         </div>
                     </div>
                 </div>
@@ -135,6 +134,15 @@
                     <section class="about-modal-section"><div class="about-modal-index about-modal-index-dark">03</div><div><h4>Bộ thẻ thông dụng có sẵn</h4><p>Bên cạnh việc tạo bộ thẻ cá nhân, SuperVocab còn cung cấp thư viện các bộ từ vựng thông dụng được đăng sẵn trên website. Người học có thể lựa chọn các chủ đề phù hợp như từ vựng TOEIC, IELTS, giao tiếp cơ bản hoặc những nhóm từ theo mục đích học tập.</p><p>Bạn có thể mở bộ thẻ có sẵn để học ngay bằng Flashcard, làm trắc nghiệm và theo dõi tiến độ riêng của mình. Điều này giúp bắt đầu nhanh hơn, đặc biệt khi chưa có danh sách từ vựng cá nhân.</p></div></section>
                 </div>
                 <div class="guide-footer"><button id="btn-about-done" class="btn btn-black" type="button">Đã hiểu</button></div>
+            </div>
+        </div>
+
+        <div id="new-user-welcome-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="new-user-welcome-title">
+            <div class="modal-content welcome-modal-content">
+                <div class="modal-header"><div><p class="guide-eyebrow">Chào mừng đến SuperVocab</p><h3 id="new-user-welcome-title">Bắt đầu học từ vựng theo cách của bạn</h3></div><button id="btn-close-new-user-welcome" class="close-btn" type="button" aria-label="Đóng thông báo"><i class="fa-solid fa-xmark"></i></button></div>
+                <p class="welcome-modal-lead">Tạo bộ thẻ cá nhân, học bằng Flashcard và để SuperVocab nhắc bạn ôn lại đúng lúc.</p>
+                <div class="welcome-steps"><div><span>1</span><p><strong>Tạo bộ thẻ</strong><small>Chọn mục tiêu như TOEIC, IELTS hoặc từ mới mỗi ngày.</small></p></div><div><span>2</span><p><strong>Thêm từ nhanh</strong><small>Nhập từ tiếng Anh để tự tìm nghĩa, phát âm và ví dụ.</small></p></div><div><span>3</span><p><strong>Học và ôn lại</strong><small>Đánh dấu từ chưa nhớ để hệ thống xếp lịch ôn tập.</small></p></div></div>
+                <div class="guide-footer"><button id="btn-welcome-browse" class="btn btn-outline" type="button">Khám phá thư viện</button><a class="btn btn-black" href="/create/"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ đầu tiên</a></div>
             </div>
         </div>
     </main>
