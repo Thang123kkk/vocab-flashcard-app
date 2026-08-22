@@ -476,3 +476,179 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body[data-page="study"] .btn-back { padding: 0 9px; font-size: 12px; }
     body[data-page="study"] .flashcard-container { min-height: 280px; }
 }
+
+/* ================= MOBILE DARK MODE — FINAL CONTRAST =================
+   responsive.css được tải sau style.css, vì vậy các ghi đè mobile phải nằm
+   tại đây để không khôi phục màu light khi màn hình hẹp. */
+@media (max-width: 768px) {
+    html[data-theme="dark"] .hamburger-btn,
+    html[data-theme="dark"] .sidebar-close-btn { color: #dbeafe; }
+
+    html[data-theme="dark"] body[data-page="home"] #btn-open-about {
+        border-color: #1e3a8a;
+        color: #bfdbfe;
+        background: #172554;
+    }
+
+    html[data-theme="dark"] .sidebar-left {
+        color: #e2e8f0;
+        border-right: 1px solid #334155;
+        background: #0f172a;
+        box-shadow: 12px 0 38px rgba(0, 0, 0, .4);
+    }
+    html[data-theme="dark"] .sidebar-overlay { background: rgba(2, 6, 23, .76); }
+    .sidebar-overlay { border: 0; cursor: default; }
+    html[data-theme="dark"] .sidebar-left .activity-card,
+    html[data-theme="dark"] .sidebar-left .chart-area,
+    html[data-theme="dark"] .sidebar-left .learning-week-chart {
+        border-color: #334155 !important;
+        background: #111827 !important;
+    }
+
+    html[data-theme="dark"] .mobile-tabbar {
+        border-color: #334155;
+        background: rgba(15, 23, 42, .97);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, .42);
+    }
+    html[data-theme="dark"] .mobile-tabbar a,
+    html[data-theme="dark"] .mobile-tabbar button { color: #94a3b8; }
+    html[data-theme="dark"] .mobile-tabbar a.active:not(.mobile-tabbar-create) { color: #60a5fa; }
+    html[data-theme="dark"] .mobile-tabbar-create { border-color: #0f172a !important; }
+
+    html[data-theme="dark"] .modal-overlay { background: rgba(2, 6, 23, .78); }
+    html[data-theme="dark"] .guide-footer .btn-outline,
+    html[data-theme="dark"] .guide-footer .btn-back { color: #dbeafe !important; background: #172033 !important; }
+    html[data-theme="dark"] .guide-footer .btn-outline:hover,
+    html[data-theme="dark"] .guide-footer .btn-back:hover { background: #1e3a8a !important; }
+}
+
+/* Header mobile: luôn ưu tiên thao tác chuyển theme, không để nút đăng nhập
+   chiếm hết thanh điều hướng. */
+@media (max-width: 640px) {
+    .top-nav .nav-right { flex: 0 0 auto; gap: 4px; }
+    .top-nav #btn-theme-toggle {
+        display: inline-grid;
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+    }
+    .top-nav .user-avatar.is-login-button {
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        min-height: 38px;
+        padding: 0;
+        border-radius: 11px;
+    }
+    .top-nav .user-avatar.is-login-button span { display: none; }
+    .top-nav #btn-open-search { width: 36px; height: 38px; }
+
+    .sidebar-close-btn {
+        z-index: 2;
+        display: grid !important;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 1px solid #dbeafe;
+        border-radius: 13px;
+        color: #475569;
+        background: #f8fafc;
+        box-shadow: 0 7px 16px rgba(15, 23, 42, .1);
+    }
+    html[data-theme="dark"] .sidebar-close-btn {
+        border-color: #475569;
+        color: #dbeafe;
+        background: #172033;
+        box-shadow: 0 7px 16px rgba(0, 0, 0, .28);
+    }
+
+    /* Thanh điều hướng dưới: mỗi mục có cùng một vùng chạm, nút tạo nằm
+       đúng tâm thay vì làm các nhãn hai bên bị lệch. */
+    .mobile-tabbar {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        align-items: center;
+        height: 72px;
+        padding: 9px 5px 7px;
+        border-radius: 23px;
+    }
+    .mobile-tabbar a,
+    .mobile-tabbar button {
+        display: grid;
+        width: 100%;
+        min-height: 50px;
+        place-content: center;
+        gap: 4px;
+        color: #94a3b8;
+        font-size: 10px !important;
+        font-weight: 750;
+        line-height: 1.1;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .mobile-tabbar i { font-size: 18px; }
+    .mobile-tabbar-create {
+        align-self: start;
+        width: 50px !important;
+        height: 50px !important;
+        min-height: 50px !important;
+        margin: -25px auto 0 !important;
+        border-radius: 18px;
+    }
+    .mobile-tabbar-create i { font-size: 19px !important; }
+
+    body[data-page="home"] .activity-card .action-buttons .btn {
+        min-height: 54px;
+        padding: 0 14px !important;
+        font-size: 14px !important;
+        line-height: 1;
+    }
+
+    /* Chuẩn căn giữa cho các nút biểu tượng và cụm điều hướng khi học. */
+    body[data-page="study"] .ctrl-btn,
+    body[data-page="repetition"] .ctrl-btn,
+    body[data-page="study"] .btn-quiz-launch,
+    body[data-page="study"] .btn-back,
+    body[data-page="study"] .study-progress-btn,
+    body[data-page="repetition"] .btn-srs {
+        display: inline-grid;
+        place-items: center;
+        padding: 0;
+        line-height: 1;
+    }
+    body[data-page="study"] .ctrl-btn i,
+    body[data-page="repetition"] .ctrl-btn i,
+    body[data-page="study"] .btn-quiz-launch i,
+    body[data-page="study"] .btn-back i,
+    body[data-page="repetition"] .btn-srs i { margin: 0; line-height: 1; }
+    body[data-page="study"] .study-navigation,
+    body[data-page="study"] .study-review-navigation {
+        display: grid;
+        grid-template-columns: 46px minmax(100px, 1fr) 46px;
+        align-items: center;
+        width: min(100%, 230px);
+        gap: 12px;
+    }
+    body[data-page="study"] .study-navigation .card-counter,
+    body[data-page="study"] .study-review-navigation .card-counter {
+        display: grid;
+        min-width: 0;
+        place-items: center;
+        line-height: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    html[data-theme="dark"] body[data-page="study"] .top-nav,
+    html[data-theme="dark"] body[data-page="repetition"] .top-nav,
+    html[data-theme="dark"] body[data-page="quiz"] .top-nav { border-color: #334155; background: rgba(15, 23, 42, .96) !important; }
+
+    html[data-theme="dark"] body[data-page="study"] .study-shortcuts-mobile { color: #cbd5e1; }
+    html[data-theme="dark"] body[data-page="study"] .flashcard-container,
+    html[data-theme="dark"] body[data-page="repetition"] .flashcard-container { box-shadow: 0 14px 32px rgba(0, 0, 0, .22); }
+
+    html[data-theme="dark"] .quiz-context,
+    html[data-theme="dark"] .quiz-play-area { color: #e2e8f0; }
+    html[data-theme="dark"] .quiz-action-buttons .btn-outline,
+    html[data-theme="dark"] .quiz-result-actions .btn-outline { color: #dbeafe !important; background: #172033 !important; }
+}

@@ -790,25 +790,59 @@ const hamburgerBtn = document.getElementById('hamburger-toggle');
 const sidebar = document.querySelector('.sidebar-left');
 
 if (hamburgerBtn && sidebar) {
+    hamburgerBtn.setAttribute('aria-expanded', 'false');
+    const sidebarOverlay = document.createElement('button');
+    sidebarOverlay.type = 'button';
+    sidebarOverlay.className = 'sidebar-overlay';
+    sidebarOverlay.setAttribute('aria-label', 'Đóng bảng hoạt động học tập');
+    sidebarOverlay.tabIndex = -1;
+    document.body.append(sidebarOverlay);
+
+    const sidebarCloseBtn = document.createElement('button');
+    sidebarCloseBtn.type = 'button';
+    sidebarCloseBtn.className = 'sidebar-close-btn';
+    sidebarCloseBtn.setAttribute('aria-label', 'Đóng bảng hoạt động học tập');
+    sidebarCloseBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+    sidebar.prepend(sidebarCloseBtn);
+
+    const setSidebarOpen = (isOpen) => {
+        sidebar.classList.toggle('active', isOpen);
+        sidebarOverlay.classList.toggle('active', isOpen);
+        document.body.classList.toggle('sidebar-open', isOpen);
+        hamburgerBtn.setAttribute('aria-expanded', String(isOpen));
+    };
+
     hamburgerBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('active');
-        document.body.classList.toggle('sidebar-open');
+        setSidebarOpen(!sidebar.classList.contains('active'));
+    });
+
+    sidebarOverlay.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSidebarOpen(false);
+    });
+    sidebarCloseBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSidebarOpen(false);
     });
 
     // Close sidebar when clicking on nav links
     document.querySelectorAll('.nav-btn').forEach(link => {
         link.addEventListener('click', () => {
-            sidebar.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
+            setSidebarOpen(false);
         });
     });
 
-    // Close sidebar when clicking outside
+    // Fallback khi thao tác ngoài panel trên màn hình lớn.
     document.addEventListener('click', (e) => {
         if (!sidebar.contains(e.target) && !hamburgerBtn.contains(e.target)) {
-            sidebar.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
+            setSidebarOpen(false);
         }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setSidebarOpen(false);
     });
 } 
 

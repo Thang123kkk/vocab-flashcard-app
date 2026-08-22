@@ -142,6 +142,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     width: 330px;
     flex-shrink: 0;
 }
+.sidebar-close-btn { display: none; }
 
 .card {
     background: var(--surface);
@@ -1469,5 +1470,25 @@ html[data-theme="dark"] .brand-loader-mark img {
 }
 html[data-theme="dark"] .brand-inline-loader .brand-loader-mark { width: 50px; height: 50px; }
 html[data-theme="dark"] .brand-inline-loader .brand-loader-mark img { width: 27px; height: 27px; }
+
+/* Hai hành động trong bảng hoạt động dùng cùng một khung và một tâm chữ. */
+.activity-card .action-buttons {
+    display: grid;
+    gap: 10px;
+}
+.activity-card .action-buttons > .btn,
+.activity-card .action-buttons .btn-group .btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 56px;
+    padding: 0 16px !important;
+    font-size: 15px !important;
+    line-height: 1;
+    text-align: center;
+}
+.activity-card .action-buttons .btn-group { display: block; }
+.activity-card .action-buttons .btn i { width: 16px; margin: 0; text-align: center; }
 
 
