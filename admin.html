@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản trị nội dung - SuperVocab</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="responsive.css">
+</head>
+<body data-page="admin">
+    <header class="top-nav">
+        <div class="nav-left">
+            <a class="logo" href="./" aria-label="Về trang chủ"><img src="assets/brand-mark.png" alt=""></a>
+            <a href="./" class="nav-btn"><i class="fa-solid fa-house"></i> Trang chủ</a>
+            <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
+            <a href="admin.html" class="nav-btn active"><i class="fa-solid fa-shield-halved"></i> Quản trị</a>
+        </div>
+        <div class="nav-right"><div class="user-avatar" id="nav-avatar" role="button" tabindex="0" aria-label="Mở tài khoản"><i class="fa-solid fa-user"></i></div></div>
+    </header>
+
+    <main id="main-container" class="admin-page">
+        <section class="admin-hero">
+            <div><p class="eyebrow"><i class="fa-solid fa-shield-halved"></i> Quản trị nội dung</p><h1>Kiểm duyệt bộ thẻ cộng đồng</h1><p>Chỉ những bộ thẻ được duyệt mới xuất hiện trong thư viện SuperVocab.</p></div>
+            <a href="./" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Về trang chủ</a>
+        </section>
+
+        <section id="admin-access-state" class="admin-access-state" hidden></section>
+        <section id="admin-review-content" hidden>
+            <div class="admin-queue-header"><div><p class="eyebrow">Hàng chờ xét duyệt</p><h2>Bộ thẻ đang chờ</h2></div><span id="admin-queue-count" class="admin-count-badge">0 bộ thẻ</span></div>
+            <div id="admin-pending-grid" class="admin-review-grid" aria-live="polite"></div>
+        </section>
+    </main>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

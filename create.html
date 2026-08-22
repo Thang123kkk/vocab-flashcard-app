@@ -24,40 +24,41 @@
         </div>
     </header>
 
-    <main id="main-container" style="max-width: 900px;"> <!-- Thu hẹp lại cho giống ảnh -->
+    <main id="main-container" class="create-page">
         
         <!-- HEADER CỦA TRANG TẠO -->
         <div class="create-header">
             <div><p class="eyebrow">Bộ thẻ mới</p><h1 id="page-title">Tạo bộ thẻ mới</h1><p class="section-subtitle">Thêm từ vựng theo cách của bạn — từng thẻ hoặc nhập hàng loạt.</p></div>
             <div class="create-actions">
-                <button class="btn btn-outline" id="btn-open-import"><i class="fa-solid fa-file-import"></i> Nhập</button>
-                <div class="toggle-wrapper">
-                    <span style="font-size: 14px; font-weight: bold; margin-right: 10px;">Công khai</span>
+                <div class="create-action-group create-data-actions"><button class="btn btn-outline" id="btn-open-import" type="button"><i class="fa-solid fa-file-import"></i><span>Nhập</span></button><button class="btn btn-outline" id="btn-export-set" type="button"><i class="fa-solid fa-file-export"></i><span>Xuất CSV</span></button></div>
+                <div class="toggle-wrapper create-visibility">
+                    <div><span>Gửi duyệt công khai</span><small>Admin sẽ kiểm tra trước khi đăng</small></div>
                     <label class="switch">
                         <input type="checkbox" id="set-public">
                         <span class="slider round"></span>
                     </label>
                 </div>
-                <a href="./" class="btn btn-outline" style="text-decoration: none;">Hủy</a>
-                <button class="btn btn-black" id="btn-save-set">Tạo</button>
+                <div class="create-action-group create-save-actions"><a href="./" class="btn btn-outline">Hủy</a><button class="btn btn-black" id="btn-save-set" type="button">Tạo</button></div>
             </div>
         </div>
 
         <!-- NÚT AI MAGIC -->
-        <button class="ai-magic-btn">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Yêu cầu AI tạo từ vựng
+        <button class="ai-magic-btn" type="button">
+            <i class="fa-solid fa-wand-magic-sparkles"></i><span><strong>Gợi ý từ vựng bằng AI</strong><small>Nhập chủ đề để nhận gợi ý học phù hợp</small></span><i class="fa-solid fa-arrow-right ai-magic-arrow"></i>
         </button>
 
         <!-- THÔNG TIN BỘ THẺ -->
-        <div class="set-meta-info">
-            <label style="font-weight: bold; font-size: 14px; margin-bottom: 5px; display: block;">Tiêu đề</label>
+        <section class="set-meta-info">
+            <div class="create-section-label"><span class="create-section-icon"><i class="fa-solid fa-layer-group"></i></span><div><p>THÔNG TIN BỘ THẺ</p><h2>Đặt tên cho bộ thẻ</h2></div></div>
+            <label>Tiêu đề</label>
             <input type="text" id="set-title" placeholder="Thêm tiêu đề..." class="input-light title-input">
             
-            <label style="font-weight: bold; font-size: 14px; margin-bottom: 5px; margin-top: 15px; display: block;">Mô tả (Tùy chọn)</label>
+            <label>Mô tả <span>(Tùy chọn)</span></label>
             <textarea id="set-desc" placeholder="Thêm mô tả cho bộ thẻ của bạn..." class="input-light desc-input"></textarea>
-        </div>
+        </section>
 
         <!-- DANH SÁCH CÁC THẺ TỪ VỰNG -->
+        <div class="vocab-editor-heading"><div><p>THẺ TỪ VỰNG</p><h2>Thêm nội dung học</h2></div><button class="btn-add-card btn-add-card-top" id="btn-add-card-top" type="button"><i class="fa-solid fa-plus"></i> Thêm thẻ</button></div>
         <div id="vocab-cards-container">
             <!-- JS sẽ tự động vẽ các thẻ (1, 2, 3...) vào đây -->
         </div>
@@ -73,7 +74,8 @@
                     <h3>Nhập</h3>
                     <button id="btn-close-import" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <p style="color: #555; font-size: 14px; margin-bottom: 15px;">Chép và dán dữ liệu từ Word, Excel, Google Docs, v.v.</p>
+                <p style="color: #555; font-size: 14px; margin-bottom: 15px;">Dán dữ liệu hoặc chọn file CSV/TSV xuất từ Excel, Google Sheets.</p>
+                <label class="import-file-picker" for="import-file"><i class="fa-solid fa-file-arrow-up"></i><span>Chọn file CSV hoặc TSV</span><input id="import-file" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values,text/plain"></label>
                 
                 <textarea id="import-textarea" placeholder="Từ 1&#9;Định nghĩa 1&#9;Phát âm (nếu có)...&#10;Từ 2&#9;Định nghĩa 2&#9;Phát âm (nếu có)..."></textarea>
                 

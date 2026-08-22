@@ -41,6 +41,7 @@
         <div class="modal-content search-modal-content">
             <div class="modal-header"><h3 id="search-modal-title">Tìm bộ thẻ của tôi</h3><button id="btn-close-search" class="close-btn" type="button" aria-label="Đóng tìm kiếm"><i class="fa-solid fa-xmark"></i></button></div>
             <label class="search-input-wrap" for="search-sets"><i class="fa-solid fa-magnifying-glass"></i><input id="search-sets" type="search" placeholder="Nhập tên hoặc mô tả bộ thẻ..." autocomplete="off"></label>
+            <div class="search-filter-row"><label>Tiến độ<select id="filter-set-progress"><option value="all">Tất cả</option><option value="unstarted">Chưa học</option><option value="in-progress">Đang học</option><option value="completed">Đã thuộc</option></select></label><label>Hiển thị<select id="filter-set-visibility"><option value="all">Tất cả</option><option value="approved">Đã công khai</option><option value="pending">Chờ duyệt</option><option value="rejected">Cần chỉnh sửa</option><option value="private">Riêng tư</option></select></label><label>Sắp xếp<select id="sort-sets"><option value="default">Mặc định</option><option value="progress-desc">Tiến độ cao</option><option value="words-desc">Nhiều từ</option><option value="title-asc">Tên A–Z</option></select></label></div>
             <p id="search-empty" class="search-empty" hidden>Không tìm thấy bộ thẻ phù hợp.</p>
         </div>
     </div>

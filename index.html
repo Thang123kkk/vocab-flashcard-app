@@ -26,6 +26,7 @@
             <a href="./" class="nav-btn active"><i class="fa-solid fa-house"></i> Trang chủ</a>
             <a href="created.html" class="nav-btn"><i class="fa-regular fa-folder-open"></i> Đã tạo</a>
             <button class="nav-btn" id="btn-open-guide" type="button" aria-label="Hướng dẫn sử dụng"><i class="fa-regular fa-circle-question"></i> Hướng dẫn</button>
+            <button class="nav-btn" id="btn-open-about" type="button" aria-label="Giới thiệu về SuperVocab"><i class="fa-solid fa-circle-info"></i> Giới thiệu</button>
         </div>
         <div class="nav-right">
             <button class="icon-btn" id="btn-open-search" type="button" aria-label="Tìm kiếm bộ thẻ"><i class="fa-solid fa-magnifying-glass"></i></button>
@@ -34,14 +35,7 @@
     </header>
 
     <main id="main-container">
-        <section class="home-hero" aria-labelledby="home-hero-title">
-            <div>
-                <p class="eyebrow"><i class="fa-solid fa-sparkles"></i> Không gian học tập của bạn</p>
-                <h1 id="home-hero-title">Mỗi ngày một chút,<br>tiến bộ thật nhiều.</h1>
-                <p>Chọn một bộ thẻ để bắt đầu, hoặc tạo chủ đề mới theo mục tiêu của bạn.</p>
-            </div>
-            <a href="create.html" class="btn btn-hero"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ</a>
-        </section>
+        <a id="review-nudge" class="review-nudge" href="repetition.html" hidden><span class="review-nudge-icon"><i class="fa-solid fa-bell"></i></span><span><strong id="review-nudge-title">Đến giờ ôn tập</strong><small id="review-nudge-message">Bạn có thẻ cần ôn hôm nay.</small></span><i class="fa-solid fa-arrow-right"></i></a>
         <div class="dashboard-layout">
             <!-- CỘT TRÁI -->
             <aside class="sidebar-left">
@@ -58,7 +52,7 @@
 
                     <!-- Phần Biểu đồ dự báo -->
                     <div class="chart-area" id="forecast-chart-container">
-                        <p class="chart-title">Dự báo ôn tập 7 ngày tới</p>
+                        <div class="forecast-heading"><p class="chart-title">Dự báo ôn tập 7 ngày tới</p><span id="forecast-summary">Đang cập nhật…</span></div>
                         <div class="bars" id="forecast-bars" style="align-items: flex-end; height: 70px;">
                             <!-- JS sẽ tự động vẽ các cột vào đây -->
                         </div>
@@ -88,22 +82,31 @@
             </section>
         </div>
 
+        <section class="home-hero home-hero-bottom" aria-labelledby="home-hero-title">
+            <div>
+                <p class="eyebrow"><i class="fa-solid fa-sparkles"></i> Không gian học tập của bạn</p>
+                <h1 id="home-hero-title">Mỗi ngày một chút,<br>tiến bộ thật nhiều.</h1>
+                <p>Chọn một bộ thẻ để bắt đầu, hoặc tạo chủ đề mới theo mục tiêu của bạn.</p>
+            </div>
+            <a href="create.html" class="btn btn-hero"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ</a>
+        </section>
+
 
         <!-- BẢNG POPUP RESET DỮ LIỆU -->
         <div id="settings-modal" class="modal-overlay" style="display: none;">
-            <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-content settings-modal-content">
                 <div class="modal-header">
-                    <h3>Cài đặt & Dữ liệu</h3>
+                    <div><p class="guide-eyebrow">Tài khoản</p><h3>Cài đặt & Dữ liệu</h3></div>
                     <button id="btn-close-settings" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                
-                <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 15px;">
-                    <button id="btn-reset-all-srs" class="btn btn-outline" style="color: #ff9800; border-color: #ff9800; text-align: left;">
-                        <i class="fa-solid fa-rotate-left"></i> Reset toàn bộ Tiến độ học (SRS & Đã thuộc)
+                <p class="settings-intro">Quản lý tiến độ học và dữ liệu cá nhân của bạn. Các thay đổi bên dưới cần được xác nhận trước khi thực hiện.</p>
+                <div class="settings-actions">
+                    <button id="btn-reset-all-srs" class="settings-action settings-action-reset" type="button">
+                        <span class="settings-action-icon"><i class="fa-solid fa-rotate-left"></i></span><span><strong>Học lại từ đầu</strong><small>Xóa tiến độ SRS và trạng thái đã thuộc</small></span><i class="fa-solid fa-chevron-right"></i>
                     </button>
                     
-                    <button id="btn-reset-account" class="btn btn-outline" style="color: #f44336; border-color: #f44336; text-align: left;">
-                        <i class="fa-solid fa-trash-can"></i> Xóa vĩnh viễn Tài khoản (Bao gồm các Bộ thẻ)
+                    <button id="btn-reset-account" class="settings-action settings-action-danger" type="button">
+                        <span class="settings-action-icon"><i class="fa-solid fa-trash-can"></i></span><span><strong>Xóa dữ liệu tài khoản</strong><small>Xóa vĩnh viễn bộ thẻ và tiến độ của bạn</small></span><i class="fa-solid fa-chevron-right"></i>
                     </button>
                 </div>
             </div>
@@ -121,14 +124,29 @@
                 <div class="guide-footer"><a class="btn btn-black" href="create.html"><i class="fa-solid fa-plus"></i> Tạo bộ thẻ đầu tiên</a><button id="btn-guide-done" class="btn btn-outline" type="button">Đã hiểu</button></div>
             </div>
         </div>
+
+        <div id="about-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
+            <div class="modal-content about-modal-content">
+                <div class="modal-header"><div><p class="guide-eyebrow">Về SuperVocab</p><h3 id="about-modal-title">Học từ vựng theo nhịp của bạn</h3></div><button id="btn-close-about" class="close-btn" type="button" aria-label="Đóng giới thiệu"><i class="fa-solid fa-xmark"></i></button></div>
+                <p class="about-modal-lead">SuperVocab là website hỗ trợ học từ vựng cá nhân theo cách trực quan, linh hoạt và phù hợp với nhịp học của mỗi người.</p>
+                <div class="about-modal-sections">
+                    <section class="about-modal-section"><div class="about-modal-index">01</div><div><h4>Tạo và học bộ thẻ cá nhân</h4><p>Thay vì ghi từ mới vào vở rồi tự lật lại để học, bạn có thể tạo các bộ thẻ từ vựng riêng theo từng mục tiêu như TOEIC, IELTS, tiếng Anh giao tiếp hay chuyên ngành. Mỗi bộ thẻ có thể được học bằng Flashcard hoặc kết hợp với bài trắc nghiệm ABCD để kiểm tra mức độ ghi nhớ.</p><p>Trong lúc học, hệ thống hiển thị rõ tiến độ: số từ đã thuộc, từ chưa nhớ và số thẻ cần ôn. Khi chọn “Chưa nhớ”, từ đó sẽ tự động được đưa vào phần Lặp lại ngắt quãng — tức nhiệm vụ học tập hằng ngày — để bạn ôn lại vào thời điểm phù hợp.</p><p>Ngoài ra, SuperVocab còn hỗ trợ tự động tìm định nghĩa khi nhập từ, phát âm từ vựng, học ngẫu nhiên để tránh ghi nhớ theo thứ tự, theo dõi tiến độ từng bộ thẻ, tìm kiếm/lọc bộ thẻ và nhập hoặc xuất dữ liệu CSV để dễ sao lưu từ Excel hoặc Google Sheets. Tính năng gợi ý từ vựng theo chủ đề bằng AI cũng đang được phát triển.</p></div></section>
+                    <section class="about-modal-section"><div class="about-modal-index about-modal-index-red">02</div><div><h4>Lặp lại ngắt quãng</h4><p>Lặp lại ngắt quãng là tính năng giúp bạn ôn lại những từ đã quên, chưa chắc hoặc sắp đến hạn ôn. Các từ được đưa vào đây dựa trên kết quả học ở từng bộ thẻ cá nhân.</p><p>Mỗi ngày, SuperVocab tạo danh sách từ cần ôn để bạn không phải tự nhớ mình cần học gì. Sau khi xem lại một thẻ, bạn có thể đánh giá mức độ ghi nhớ như Quên, Khó, Tốt hoặc Dễ. Dựa vào lựa chọn đó, hệ thống sẽ sắp xếp thời điểm ôn tiếp theo, giúp bạn tập trung vào những từ thực sự cần củng cố và ghi nhớ lâu hơn.</p></div></section>
+                    <section class="about-modal-section"><div class="about-modal-index about-modal-index-dark">03</div><div><h4>Bộ thẻ thông dụng có sẵn</h4><p>Bên cạnh việc tạo bộ thẻ cá nhân, SuperVocab còn cung cấp thư viện các bộ từ vựng thông dụng được đăng sẵn trên website. Người học có thể lựa chọn các chủ đề phù hợp như từ vựng TOEIC, IELTS, giao tiếp cơ bản hoặc những nhóm từ theo mục đích học tập.</p><p>Bạn có thể mở bộ thẻ có sẵn để học ngay bằng Flashcard, làm trắc nghiệm và theo dõi tiến độ riêng của mình. Điều này giúp bắt đầu nhanh hơn, đặc biệt khi chưa có danh sách từ vựng cá nhân.</p></div></section>
+                </div>
+                <div class="guide-footer"><button id="btn-about-done" class="btn btn-black" type="button">Đã hiểu</button></div>
+            </div>
+        </div>
     </main>
 
     <div id="search-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">
         <div class="modal-content search-modal-content">
             <div class="modal-header"><h3 id="search-modal-title">Tìm bộ thẻ</h3><button id="btn-close-search" class="close-btn" type="button" aria-label="Đóng tìm kiếm"><i class="fa-solid fa-xmark"></i></button></div>
             <label class="search-input-wrap" for="search-sets"><i class="fa-solid fa-magnifying-glass"></i><input id="search-sets" type="search" placeholder="Nhập tên, mô tả hoặc tác giả..." autocomplete="off"></label>
+            <div class="search-filter-row"><label>Tiến độ<select id="filter-set-progress"><option value="all">Tất cả</option><option value="unstarted">Chưa học</option><option value="in-progress">Đang học</option><option value="completed">Đã thuộc</option></select></label><label>Sắp xếp<select id="sort-sets"><option value="default">Mặc định</option><option value="progress-desc">Tiến độ cao</option><option value="words-desc">Nhiều từ</option><option value="title-asc">Tên A–Z</option></select></label></div>
             <p id="search-empty" class="search-empty" hidden>Không tìm thấy bộ thẻ phù hợp.</p>
         </div>
+
     </div>
 
     <nav class="mobile-tabbar" aria-label="Điều hướng nhanh">

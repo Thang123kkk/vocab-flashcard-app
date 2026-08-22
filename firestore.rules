@@ -10,14 +10,47 @@ service cloud.firestore {
       return signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
+    // Tài khoản admin được xác định bằng tài liệu /admins/{uid} do Firebase Console
+    // hoặc Admin SDK tạo. Client không có quyền tự thêm mình vào collection này.
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isUserSubmission() {
+      return request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.isPublic == false
+        && request.resource.data.publicationStatus in ['private', 'pending'];
+    }
+
+    function isSafeUserUpdate() {
+      return ownsExistingSet()
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.isPublic == false
+        && request.resource.data.publicationStatus in ['private', 'pending']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'title', 'description', 'words', 'isPublic', 'publicationStatus'
+        ]);
+    }
+
     match /study_sets/{setId} {
-      // Người dùng đã đăng nhập có thể xem bộ thẻ công khai hoặc bộ thẻ của họ.
-      allow read: if signedIn() && (resource.data.isPublic == true || ownsExistingSet());
-      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
-      // Không thể đổi chủ sở hữu của bộ thẻ qua thao tác cập nhật.
-      allow update: if ownsExistingSet()
-                    && request.resource.data.ownerId == resource.data.ownerId;
-      allow delete: if ownsExistingSet();
+      // Chỉ bộ thẻ đã được admin duyệt (isPublic) mới hiện với cộng đồng.
+      // Chủ sở hữu và admin vẫn xem được các bộ thẻ đang chờ duyệt.
+      allow read: if signedIn()
+        && (resource.data.isPublic == true || ownsExistingSet() || isAdmin());
+      // User chỉ tạo bộ thẻ riêng tư hoặc gửi vào hàng chờ duyệt.
+      allow create: if signedIn() && isUserSubmission();
+      // User không thể tự đặt isPublic = true hoặc publicationStatus = approved.
+      allow update: if isSafeUserUpdate()
+        || (isAdmin() && request.resource.data.ownerId == resource.data.ownerId);
+      allow delete: if ownsExistingSet() || isAdmin();
+    }
+
+    match /admins/{userId} {
+      // Người dùng chỉ được kiểm tra quyền admin của chính họ.
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      // Chỉ Firebase Console hoặc Admin SDK được dùng để cấp / thu quyền admin.
+      allow write: if false;
     }
 
     match /user_progress/{progressId} {

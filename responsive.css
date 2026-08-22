@@ -47,7 +47,7 @@
     }
 
     /* Hide nav buttons on mobile */
-    .nav-left .nav-btn {
+    body[data-page="home"] .nav-left .nav-btn {
         display: none;
     }
 
@@ -62,6 +62,8 @@
     }
 
     body[data-page="home"] #btn-open-guide i { margin: 0; font-size: 17px; }
+
+    body[data-page="home"] #btn-open-about { display: none; }
 
     /* Các trang không có sidebar vẫn phải giữ đường điều hướng hoạt động. */
     body:not([data-page="home"]) .hamburger-btn {
@@ -196,6 +198,8 @@
     .top-nav { min-height: 60px; }
     .nav-right { gap: 8px; }
     .nav-left { min-width: 0; }
+    body[data-page="admin"] .nav-left .nav-btn { display: inline-flex; width: 38px; min-width: 38px; height: 38px; padding: 0; font-size: 0; }
+    body[data-page="admin"] .nav-left .nav-btn i { margin: 0; font-size: 16px; }
     .study-header, .create-header { align-items: flex-start; gap: 16px; flex-direction: column; }
     .create-actions { width: 100%; flex-wrap: wrap; gap: 9px; }
     .create-actions .btn { flex: 1; text-align: center; }
