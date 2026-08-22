@@ -51,19 +51,26 @@
         display: none;
     }
 
-    body[data-page="home"] #btn-open-guide {
+    /* Hướng dẫn đã có ở thanh điều hướng dưới, tránh lặp lại trên header. */
+    body[data-page="home"] #btn-open-guide { display: none; }
+
+    body[data-page="home"] #btn-open-about {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 38px;
+        gap: 6px;
+        width: auto;
         height: 38px;
-        padding: 0;
-        font-size: 0;
+        padding: 0 11px;
+        border-color: #dbeafe;
+        color: #1e3a8a;
+        background: #f8fbff;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
     }
 
-    body[data-page="home"] #btn-open-guide i { margin: 0; font-size: 17px; }
-
-    body[data-page="home"] #btn-open-about { display: none; }
+    body[data-page="home"] #btn-open-about i { margin: 0; font-size: 14px; }
 
     /* Các trang không có sidebar vẫn phải giữ đường điều hướng hoạt động. */
     body:not([data-page="home"]) .hamburger-btn {
@@ -327,4 +334,145 @@
 
     /* Chừa vùng an toàn cho thanh điều hướng cố định ở cuối màn hình. */
     #main-container { padding-bottom: 100px; }
+}
+
+/* ================= MOBILE POLISH =================
+   Giữ nội dung gọn trong khung nhìn điện thoại và chừa vùng an toàn cho tabbar. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+@media (max-width: 640px) {
+    body[data-page="home"] #main-container {
+        padding-right: 14px;
+        padding-bottom: calc(112px + env(safe-area-inset-bottom));
+        padding-left: 14px;
+    }
+
+    /* Sidebar học tập: là một panel gọn, có thể cuộn độc lập trên điện thoại. */
+    body[data-page="home"] .sidebar-left {
+        width: min(96vw, 440px);
+        height: 100dvh;
+        padding: 16px 14px calc(104px + env(safe-area-inset-bottom));
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        border-radius: 0 24px 24px 0;
+        box-shadow: 12px 0 38px rgba(15, 23, 42, .18);
+    }
+
+    body[data-page="home"] .sidebar-left .activity-card {
+        padding: 20px 16px;
+        border-radius: 18px;
+    }
+
+    body[data-page="home"] .activity-card .card-header { margin-bottom: 8px; }
+    body[data-page="home"] .activity-card .card-header h3 { font-size: 21px; line-height: 1.15; }
+    body[data-page="home"] .activity-card .eyebrow { font-size: 10px; }
+    body[data-page="home"] .activity-summary { margin: 0 0 15px; font-size: 13px; line-height: 1.45; }
+    body[data-page="home"] .activity-stats { gap: 7px; margin-bottom: 14px; }
+    body[data-page="home"] .activity-stat { align-items: center; gap: 8px; padding: 11px 9px; border-radius: 13px; }
+    body[data-page="home"] .activity-stat-icon { flex: 0 0 30px; width: 30px; height: 30px; font-size: 13px; }
+    body[data-page="home"] .activity-stat-label { font-size: 9px; line-height: 1.2; }
+    body[data-page="home"] .activity-stat strong { font-size: 20px; line-height: 1.05; }
+    body[data-page="home"] .activity-stat-suffix { font-size: 10px; line-height: 1.25; }
+    body[data-page="home"] .activity-card .chart-area { margin-bottom: 14px; padding: 12px 10px 10px; border-radius: 14px; }
+    body[data-page="home"] .activity-card .chart-title { margin-bottom: 8px; padding-bottom: 7px; font-size: 9px; line-height: 1.35; }
+    body[data-page="home"] .activity-card .bars { height: 58px !important; gap: 3px; }
+    body[data-page="home"] .activity-card .bar-count,
+    body[data-page="home"] .activity-card .day-label { font-size: 8px; }
+    body[data-page="home"] .activity-card .action-buttons .btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 48px;
+        padding: 0 12px !important;
+        font-size: 14px !important;
+        line-height: 1.2;
+    }
+    body[data-page="home"] .activity-card .btn-group .btn { border-radius: 12px; }
+
+    /* Thư viện: thẻ ngắn hơn, đủ chỗ cho hành động và không bị tabbar che. */
+    body[data-page="home"] .section-header { margin-bottom: 12px; }
+    body[data-page="home"] .section-header h3 { font-size: clamp(20px, 6vw, 25px); line-height: 1.22; }
+    body[data-page="home"] .card-grid { gap: 12px; margin-bottom: 22px; }
+    body[data-page="home"] .study-set-card {
+        min-height: 0;
+        padding: 17px 16px;
+        border-radius: 18px;
+    }
+    body[data-page="home"] .set-title { margin: 2px 0 9px; font-size: 19px; line-height: 1.25; }
+    body[data-page="home"] .set-lang { min-height: 0; margin-bottom: 10px; font-size: 13px; }
+    body[data-page="home"] .progress-container { gap: 8px; margin: 5px 0 10px; }
+    body[data-page="home"] .progress-text { flex: 0 0 auto; font-size: 12px; }
+    body[data-page="home"] .set-footer { align-items: flex-start; flex-wrap: wrap; gap: 6px 12px; padding-top: 10px; }
+    body[data-page="home"] .author-tag { max-width: 100%; }
+    body[data-page="home"] .set-card-action { min-height: 42px; margin-top: 11px; padding: 10px 12px; font-size: 13px; }
+
+    /* Chế độ học: tiêu đề, thẻ và các nút luôn nằm trong một nhịp đọc rõ ràng. */
+    body[data-page="study"] .top-nav {
+        min-height: 62px;
+        padding: 9px 12px;
+        gap: 8px;
+    }
+    body[data-page="study"] .nav-left,
+    body[data-page="study"] .nav-right { min-width: 0; gap: 7px !important; }
+    body[data-page="study"] .logo img { width: 32px; height: 32px; }
+    body[data-page="study"] .study-title-wrap { min-width: 0; margin-left: 0; }
+    body[data-page="study"] .study-title-label { font-size: 9px; }
+    body[data-page="study"] #study-set-title { max-width: min(35vw, 142px); font-size: 13px; }
+    body[data-page="study"] .btn-quiz-launch { width: 42px; min-width: 42px; height: 42px; min-height: 42px; }
+    body[data-page="study"] .btn-back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0 11px;
+        border-radius: 11px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    body[data-page="study"] .btn-back i { margin-right: 3px; }
+    body[data-page="study"] #main-container { padding: 14px 14px calc(116px + env(safe-area-inset-bottom)); }
+    body[data-page="study"] .study-session-bar { margin-bottom: 10px; font-size: 12px; }
+    body[data-page="study"] .study-mode-label { padding: 6px 9px; font-size: 10px; }
+    body[data-page="study"] .flashcard-container { height: min(52svh, 420px); min-height: 300px; margin-bottom: 14px; }
+    body[data-page="study"] .card-face { border-radius: 20px; }
+    body[data-page="study"] .fc-term { font-size: clamp(32px, 10vw, 44px); }
+    body[data-page="study"] .fc-def { font-size: clamp(24px, 8vw, 34px); }
+    body[data-page="study"] .study-shortcuts { max-width: none; margin: 0 0 15px; font-size: 12px; line-height: 1.4; }
+    .study-shortcuts-desktop { display: none; }
+    .study-shortcuts-mobile { display: inline-flex; align-items: center; gap: 6px; color: #64748b; }
+    .study-shortcuts-mobile i { color: #2563eb; }
+    body[data-page="study"] .study-controls {
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "progress random" "navigation navigation";
+        row-gap: 14px;
+        width: 100%;
+        margin-bottom: 30px;
+    }
+    body[data-page="study"] .study-progress-btn { grid-area: progress; min-height: 42px; padding: 0 12px; font-size: 13px; }
+    body[data-page="study"] .study-review-actions { grid-area: random; }
+    body[data-page="study"] .study-navigation,
+    body[data-page="study"] .study-review-navigation {
+        grid-area: navigation;
+        grid-row: auto;
+        grid-column: auto;
+        justify-self: center;
+        gap: 12px;
+    }
+    body[data-page="study"] .ctrl-btn { width: 46px; height: 46px; }
+    body[data-page="study"] .card-counter { width: auto; min-width: 96px; order: initial; text-align: center; }
+    body[data-page="study"] .study-word-section { padding-bottom: 12px; }
+}
+
+@media (min-width: 641px) {
+    .study-shortcuts-mobile { display: none; }
+}
+
+@media (max-width: 390px) {
+    body[data-page="home"] .sidebar-left { width: min(96vw, 390px); }
+    body[data-page="home"] .activity-stat { padding: 9px 6px; }
+    body[data-page="home"] .activity-stat-icon { display: none; }
+    body[data-page="study"] #study-set-title { max-width: 96px; }
+    body[data-page="study"] .btn-back { padding: 0 9px; font-size: 12px; }
+    body[data-page="study"] .flashcard-container { min-height: 280px; }
 }

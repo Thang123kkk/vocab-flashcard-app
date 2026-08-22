@@ -328,26 +328,107 @@ function validateSetForm() {
     const cardEls = document.querySelectorAll('.vocab-input-card');
 
     if (!title) {
+        titleInput?.classList.add('is-invalid');
         showError('Vui lòng nhập tiêu đề bộ thẻ.');
+        titleInput?.focus();
         return false;
     }
+    titleInput?.classList.remove('is-invalid');
 
-    if (cardEls.length === 0) {
-        showError('Vui lòng thêm ít nhất một từ vựng.');
-        return false;
-    }
+    let validCardCount = 0;
+    let firstInvalidInput = null;
 
     for (const card of cardEls) {
         const term = card.querySelector('.input-term')?.value.trim();
         const def = card.querySelector('.input-def')?.value.trim();
+        const allValues = [...card.querySelectorAll('input')].map((input) => input.value.trim());
+        const isEmptyCard = allValues.every((value) => !value);
 
-        if (!term || !def) {
-            showError('Mỗi từ vựng cần có từ và định nghĩa.');
-            return false;
+        card.querySelectorAll('.field-input').forEach(clearInputValidation);
+
+        // Các thẻ mồi còn trống hoàn toàn không được lưu và cũng không báo lỗi.
+        if (isEmptyCard) continue;
+
+        if (!term) {
+            const termInput = card.querySelector('.input-term');
+            setInputValidation(termInput, 'Nhập thuật ngữ cho thẻ này.');
+            firstInvalidInput ||= termInput;
         }
+
+        if (!def) {
+            const definitionInput = card.querySelector('.input-def');
+            setInputValidation(definitionInput, term ? 'Thuật ngữ này cần có định nghĩa.' : 'Nhập định nghĩa cho thẻ này.');
+            firstInvalidInput ||= definitionInput;
+        }
+
+        if (!term || !def) continue;
+        validCardCount++;
+    }
+
+    if (firstInvalidInput) {
+        showError('Hãy hoàn thiện các ô được đánh dấu đỏ trước khi lưu.');
+        firstInvalidInput.focus();
+        return false;
+    }
+
+    if (validCardCount === 0) {
+        showError('Hãy thêm ít nhất một thẻ có thuật ngữ và định nghĩa.');
+        return false;
     }
 
     return true;
+}
+
+function setInputValidation(input, message) {
+    if (!input) return;
+    const fieldGroup = input.closest('.field-group');
+    input.classList.add('is-invalid');
+    input.setAttribute('aria-invalid', 'true');
+    fieldGroup?.classList.add('has-validation-error');
+
+    if (!fieldGroup) return;
+    let error = fieldGroup.querySelector('.field-error');
+    if (!error) {
+        error = document.createElement('small');
+        error.className = 'field-error';
+        error.setAttribute('role', 'alert');
+        fieldGroup.append(error);
+    }
+    error.textContent = message;
+}
+
+function clearInputValidation(input) {
+    if (!input) return;
+    const fieldGroup = input.closest('.field-group');
+    input.classList.remove('is-invalid');
+    input.removeAttribute('aria-invalid');
+    fieldGroup?.classList.remove('has-validation-error');
+    fieldGroup?.querySelector('.field-error')?.remove();
+}
+
+function textValue(value) {
+    return typeof value === 'string' ? value.trim() : (value == null ? '' : String(value).trim());
+}
+
+// Chấp nhận cả dữ liệu cũ (def/meaning/word) để bộ thẻ tạo từ các phiên bản trước vẫn học được.
+function normalizeVocabularyWord(word) {
+    if (!word || typeof word !== 'object') return null;
+    const term = textValue(word.term || word.word || word.front);
+    const definition = textValue(word.definition || word.def || word.meaning || word.translation || word.back);
+    if (!term || !definition) return null;
+
+    return {
+        term,
+        definition,
+        pronunciation: textValue(word.pronunciation || word.pron || word.phonetic),
+        type: textValue(word.type || word.partOfSpeech),
+        example: textValue(word.example || word.exampleSentence),
+        synonyms: textValue(word.synonyms)
+    };
+}
+
+function normalizeVocabularyWords(words) {
+    return Array.isArray(words) ? words.map(normalizeVocabularyWord).filter(Boolean) : [];
 }
 
 // ============ MỤC TIÊU VÀ NHỊP HỌC HẰNG NGÀY ============
@@ -903,10 +984,13 @@ if (currentPage === 'create') {
     const btnAddCard = document.getElementById('btn-add-card');
     const btnSaveSet = document.getElementById('btn-save-set');
     const pageTitle = document.getElementById('page-title');
+    const setTitleInput = document.getElementById('set-title');
     
     // Đọc URL xem có ID bộ thẻ không (Nếu có là chế độ Sửa)
     const urlParams = new URLSearchParams(window.location.search);
     const editId = urlParams.get('id');
+
+    setTitleInput?.addEventListener('input', () => setTitleInput.classList.remove('is-invalid'));
 
     // Hàm tạo ra 1 khối HTML nhập liệu cho 1 từ vựng
     function addVocabRow(term = '', def = '', pron = '', type = '', ex = '', syn = '') {
@@ -922,6 +1006,7 @@ if (currentPage === 'create') {
                     <div class="field-group">
                         <label>Thuật ngữ</label>
                         <input type="text" class="field-input input-term" placeholder="VD: Hello" value="${escapeHTML(term)}">
+                        <small class="lookup-status" aria-live="polite"></small>
                     </div>
                     <div class="field-group">
                         <label>Định nghĩa</label>
@@ -968,6 +1053,17 @@ if (currentPage === 'create') {
             card.querySelector('.card-number').textContent = index + 1;
         });
     }
+
+    let editorInitialized = false;
+    function seedEmptyCards() {
+        if (editorInitialized) return;
+        editorInitialized = true;
+        for (let index = 0; index < 3; index++) addVocabRow();
+    }
+
+    // Trang tạo mới sẵn sàng ngay cả khi Firebase chưa trả về trạng thái đăng nhập.
+    // Nhờ vậy dữ liệu vừa nhập sẽ không bị sự kiện đăng nhập xóa đi.
+    if (!editId) seedEmptyCards();
 
     // --- LOGIC NHẬP DỮ LIỆU HÀNG LOẠT (BULK IMPORT) ---
     const importModal = document.getElementById('import-modal');
@@ -1067,40 +1163,31 @@ if (currentPage === 'create') {
     // --- KHỞI TẠO DỮ LIỆU KHI VÀO TRANG (CHỐNG DUPLICATE) ---
     onAuthStateChanged(auth, async (user) => {
         if (!user) return;
+        if (!editId || editorInitialized) return;
 
-        // Xóa sạch container trước khi render để tránh bị chồng lấn dữ liệu cũ
+        // CHẾ ĐỘ SỬA: chỉ khởi tạo một lần để không làm mất thao tác đang nhập.
+        editorInitialized = true;
         vocabContainer.innerHTML = '';
+        pageTitle.textContent = "Chỉnh sửa bộ thẻ";
+        btnSaveSet.textContent = "Hoàn tất";
 
-        if (editId) {
-            // CHẾ ĐỘ SỬA: Lấy dữ liệu cũ từ Firebase đổ vào
-            pageTitle.textContent = "Chỉnh sửa bộ thẻ";
-            btnSaveSet.textContent = "Hoàn tất";
-            
-            try {
-                const docRef = doc(db, "study_sets", editId);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.ownerId !== user.uid) {
-                        showError('Bạn không có quyền chỉnh sửa bộ thẻ này.');
-                        window.setTimeout(() => { window.location.href = '/created/'; }, 800);
-                        return;
-                    }
-                    document.getElementById('set-title').value = data.title;
-                    document.getElementById('set-desc').value = data.description || '';
-                    const publicationStatus = data.publicationStatus || (data.isPublic ? 'approved' : 'private');
-                    document.getElementById('set-public').checked = publicationStatus === 'approved' || publicationStatus === 'pending';
-                    
-                    // Duyệt mảng và vẽ chính xác từng thẻ
-                    data.words.forEach(w => addVocabRow(w.term, w.definition, w.pronunciation, w.type, w.example, w.synonyms));
+        try {
+            const docRef = doc(db, "study_sets", editId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.ownerId !== user.uid) {
+                    showError('Bạn không có quyền chỉnh sửa bộ thẻ này.');
+                    window.setTimeout(() => { window.location.href = '/created/'; }, 800);
+                    return;
                 }
-            } catch (error) { console.error(error); }
-        } else {
-            // CHẾ ĐỘ TẠO MỚI: Chỉ mồi sẵn đúng 3 thẻ trống duy nhất
-            for(let i = 0; i < 3; i++) {
-                addVocabRow();
+                document.getElementById('set-title').value = data.title;
+                document.getElementById('set-desc').value = data.description || '';
+                const publicationStatus = data.publicationStatus || (data.isPublic ? 'approved' : 'private');
+                document.getElementById('set-public').checked = publicationStatus === 'approved' || publicationStatus === 'pending';
+                normalizeVocabularyWords(data.words).forEach((word) => addVocabRow(word.term, word.definition, word.pronunciation, word.type, word.example, word.synonyms));
             }
-        }
+        } catch (error) { console.error(error); }
     });
 
     // --- LƯU LÊN FIREBASE (CREATE / UPDATE) ---
@@ -1116,20 +1203,14 @@ if (currentPage === 'create') {
 
         const title = document.getElementById('set-title').value.trim();
 
-        const wordsArray = [];
-        document.querySelectorAll('.vocab-input-card').forEach(card => {
-            const term = card.querySelector('.input-term').value.trim();
-            const def = card.querySelector('.input-def').value.trim();
-            if (term && def) { 
-                wordsArray.push({
-                    term: term, definition: def,
-                    pronunciation: card.querySelector('.input-pron').value.trim(),
-                    type: card.querySelector('.input-type').value.trim(),
-                    example: card.querySelector('.input-ex').value.trim(),
-                    synonyms: card.querySelector('.input-syn').value.trim()
-                });
-            }
-        });
+        const wordsArray = normalizeVocabularyWords([...document.querySelectorAll('.vocab-input-card')].map((card) => ({
+            term: card.querySelector('.input-term').value,
+            definition: card.querySelector('.input-def').value,
+            pronunciation: card.querySelector('.input-pron').value,
+            type: card.querySelector('.input-type').value,
+            example: card.querySelector('.input-ex').value,
+            synonyms: card.querySelector('.input-syn').value
+        })));
 
         if (wordsArray.length === 0) return alert("Cần ít nhất 1 từ vựng hợp lệ!");
         btnSaveSet.textContent = "Đang lưu...";
@@ -1165,72 +1246,181 @@ if (currentPage === 'create') {
     });
 
     // ==========================================
-    // 🪄 PHÉP THUẬT AI: TỰ ĐỘNG ĐIỀN TỪ VỰNG (BẢN NÂNG CẤP)
+    // TỰ ĐỘNG TRA TỪ: chỉ cập nhật dữ liệu do hệ thống tạo, không ghi đè nội dung người học tự sửa.
     // ==========================================
-    
-    vocabContainer.addEventListener('focusout', async (event) => {
+    const lookupControllers = new WeakMap();
+    const autoFields = ['.input-def', '.input-pron', '.input-type', '.input-ex', '.input-syn'];
+
+    function setLookupStatus(card, message = '', state = '') {
+        const status = card.querySelector('.lookup-status');
+        if (!status) return;
+        status.textContent = message;
+        status.dataset.state = state;
+    }
+
+    function clearOutdatedAutoValues(card, word) {
+        autoFields.forEach((selector) => {
+            const input = card.querySelector(selector);
+            if (input?.dataset.autoFilledFor && input.dataset.autoFilledFor !== word) {
+                input.value = '';
+                delete input.dataset.autoFilledFor;
+            }
+        });
+    }
+
+    function applyAutoValue(card, selector, value, word) {
+        if (!value) return false;
+        const input = card.querySelector(selector);
+        if (!input || (input.value && !input.dataset.autoFilledFor)) return false;
+        input.value = value;
+        input.dataset.autoFilledFor = word;
+        clearInputValidation(input);
+        return true;
+    }
+
+    function findDictionaryDetails(entries) {
+        const entry = entries?.[0] || {};
+        const meanings = entry.meanings || [];
+        const meaning = meanings.find((item) => item.definitions?.some((definition) => definition.example) || item.synonyms?.length) || meanings[0] || {};
+        const definition = meaning.definitions?.find((item) => item.example) || meaning.definitions?.[0] || {};
+        const synonyms = [...new Set([
+            ...(meaning.synonyms || []),
+            ...(definition.synonyms || [])
+        ])].slice(0, 3).join(', ');
+
+        return {
+            phonetic: entry.phonetic || entry.phonetics?.find((item) => item.text)?.text || '',
+            partOfSpeech: meaning.partOfSpeech || '',
+            example: definition.example || '',
+            synonyms
+        };
+    }
+
+    const emptyDictionaryDetails = () => ({ phonetic: '', partOfSpeech: '', example: '', synonyms: '' });
+    const dictionaryDetailCount = (details) => Object.values(details).filter(Boolean).length;
+    const waitBeforeLookupRetry = () => new Promise((resolve) => window.setTimeout(resolve, 450));
+
+    async function fetchDictionaryDetailsWithRetry(word, signal, maxAttempts = 5) {
+        let bestDetails = emptyDictionaryDetails();
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { signal });
+
+                // 404 thường là sai chính tả hoặc từ không có trong từ điển: không gọi lại vô ích.
+                if (response.status === 404) return { details: bestDetails, notFound: true };
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const details = findDictionaryDetails(await response.json());
+                if (dictionaryDetailCount(details) > dictionaryDetailCount(bestDetails)) bestDetails = details;
+
+                // Có ít nhất hai trường bổ sung là phản hồi đủ tin cậy; không cần thử lại thêm.
+                if (dictionaryDetailCount(bestDetails) >= 2) break;
+            } catch (error) {
+                if (error.name === 'AbortError') throw error;
+            }
+
+            if (attempt < maxAttempts - 1) await waitBeforeLookupRetry();
+        }
+
+        return { details: bestDetails, notFound: false };
+    }
+
+    async function fetchTranslationWithRetry(word, signal, maxAttempts = 2) {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(word)}`, { signal });
+                if (!response.ok) return '';
+                const translationData = await response.json();
+                const definition = translationData?.[0]?.map((part) => part?.[0]).filter(Boolean).join('') || '';
+                if (definition) return definition;
+            } catch (error) {
+                if (error.name === 'AbortError') throw error;
+            }
+
+            if (attempt < maxAttempts - 1) await waitBeforeLookupRetry();
+        }
+        return '';
+    }
+
+    async function lookUpVocabulary(termInput) {
+        const word = termInput.value.trim();
+        const card = termInput.closest('.vocab-input-card');
+        if (!card || !word) return;
+
+        lookupControllers.get(card)?.abort();
+        const controller = new AbortController();
+        lookupControllers.set(card, controller);
+        clearOutdatedAutoValues(card, word);
+        setLookupStatus(card, 'Đang tìm nghĩa và thông tin từ…', 'loading');
+
+        let details = emptyDictionaryDetails();
+        let definitionVi = '';
+        let dictionaryNotFound = false;
+
+        try {
+            const [dictionaryLookup, translatedDefinition] = await Promise.all([
+                fetchDictionaryDetailsWithRetry(word, controller.signal),
+                fetchTranslationWithRetry(word, controller.signal)
+            ]);
+
+            details = dictionaryLookup.details;
+            dictionaryNotFound = dictionaryLookup.notFound;
+            definitionVi = translatedDefinition;
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            console.warn('Không thể tự động tra từ:', error);
+        }
+
+        // Không để một yêu cầu cũ (ví dụ “hello”) ghi đè dữ liệu của từ vừa sửa (“father”).
+        if (controller.signal.aborted || termInput.value.trim() !== word) return;
+
+        const foundFields = [
+            definitionVi && 'nghĩa',
+            details.phonetic && 'phát âm',
+            details.partOfSpeech && 'loại từ',
+            details.example && 'ví dụ',
+            details.synonyms && 'từ đồng nghĩa'
+        ].filter(Boolean);
+        const updated = [
+            applyAutoValue(card, '.input-def', definitionVi, word),
+            applyAutoValue(card, '.input-pron', details.phonetic, word),
+            applyAutoValue(card, '.input-type', details.partOfSpeech, word),
+            applyAutoValue(card, '.input-ex', details.example, word),
+            applyAutoValue(card, '.input-syn', details.synonyms, word)
+        ].some(Boolean);
+
+        if (updated && foundFields.length === 5) {
+            setLookupStatus(card, 'Đã cập nhật đầy đủ thông tin tự động.', 'success');
+        } else if (updated && dictionaryNotFound) {
+            setLookupStatus(card, 'Đã dịch nghĩa nhưng không nhận diện được từ trong từ điển. Hãy kiểm tra lại chính tả.', 'error');
+        } else if (updated) {
+            setLookupStatus(card, `Đã cập nhật ${foundFields.length}/5 mục (${foundFields.join(', ')}). Một số thông tin chưa có từ nguồn tra cứu.`, 'success');
+        } else if (dictionaryNotFound) {
+            setLookupStatus(card, 'Không nhận diện được từ trong từ điển. Hãy kiểm tra lại chính tả.', 'error');
+        } else {
+            setLookupStatus(card, 'Không tìm thấy dữ liệu phù hợp. Bạn vẫn có thể nhập thủ công.', 'error');
+        }
+    }
+
+    vocabContainer.addEventListener('input', (event) => {
+        if (!event.target.classList.contains('field-input')) return;
+        clearInputValidation(event.target);
+
         if (event.target.classList.contains('input-term')) {
-            const word = event.target.value.trim();
-            if (!word) return;
-
             const card = event.target.closest('.vocab-input-card');
-            const defInput = card.querySelector('.input-def');
-            
-            // Nếu đã gõ nghĩa rồi thì không ghi đè
-            if (defInput.value) return;
+            lookupControllers.get(card)?.abort();
+            setLookupStatus(card, event.target.value.trim() ? 'Sẽ tra lại khi bạn rời ô thuật ngữ.' : '', '');
+            return;
+        }
 
-            // Đổi màu cam báo hiệu đang xử lý
-            event.target.style.color = '#ff9800'; 
+        // Nếu người học tự sửa một ô, dữ liệu đó luôn được ưu tiên ở lần tra tiếp theo.
+        delete event.target.dataset.autoFilledFor;
+    });
 
-            let phonetic = '', partOfSpeech = '', example = '', synonyms = '', definitionVi = '';
-
-            // 1. GỌI API TỪ ĐIỂN (Bắt lỗi riêng biệt)
-            try {
-                const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-                if (dictRes.ok) {
-                    const dictData = await dictRes.json();
-                    const result = dictData[0];
-                    
-                    // Dùng dấu chấm hỏi (?.) để JS không bị crash nếu dữ liệu bị khuyết
-                    phonetic = result.phonetic || result.phonetics?.find(p => p.text)?.text || '';
-                    
-                    const meaning = result.meanings?.[0];
-                    if (meaning) {
-                        partOfSpeech = meaning.partOfSpeech || '';
-                        example = meaning.definitions?.[0]?.example || '';
-                        synonyms = meaning.synonyms?.slice(0, 3).join(', ') || '';
-                    }
-                }
-            } catch (err) {
-                console.warn("Từ điển API không lấy được cấu trúc:", err);
-            }
-
-            // 2. GỌI API GOOGLE DỊCH (Chuẩn xác, không giới hạn)
-            try {
-                // Sử dụng endpoint dịch tự do của Google
-                const transRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(word)}`);
-                if (transRes.ok) {
-                    const transData = await transRes.json();
-                    definitionVi = transData[0][0][0] || '';
-                }
-            } catch (err) {
-                console.warn("Lỗi Google Translate API:", err);
-            }
-
-            // 3. KIỂM TRA VÀ ĐỔ DỮ LIỆU
-            if (!definitionVi && !phonetic) {
-                event.target.style.color = '#ff5252'; // Đỏ: Thất bại hoàn toàn
-                return;
-            }
-
-            card.querySelector('.input-def').value = definitionVi;
-            card.querySelector('.input-pron').value = phonetic;
-            card.querySelector('.input-type').value = partOfSpeech;
-            card.querySelector('.input-ex').value = example;
-            card.querySelector('.input-syn').value = synonyms;
-
-            // Xanh lá: Xong!
-            event.target.style.color = '#4CAF50'; 
+    vocabContainer.addEventListener('focusout', (event) => {
+        if (event.target.classList.contains('input-term') && event.target.value.trim()) {
+            lookUpVocabulary(event.target);
         }
     });
     // Code cho nút màu đen (Yêu cầu AI tạo từ vựng hàng loạt)
@@ -1308,7 +1498,7 @@ if (currentPage === 'study') {
 
     document.getElementById('btn-play-audio').addEventListener('click', (e) => {
         e.stopPropagation(); 
-        speakWord(wordsArray[currentIndex].term);
+        if (wordsArray[currentIndex]) speakWord(wordsArray[currentIndex].term);
     });
 
     flashcard.addEventListener('click', () => {
@@ -1334,8 +1524,24 @@ if (currentPage === 'study') {
         navigator.vibrate?.(8);
     }, { passive: true });
 
+    function showStudyEmptyState(message = 'Bộ thẻ này chưa có từ vựng hợp lệ.') {
+        flashcard.classList.remove('is-flipped');
+        document.getElementById('fc-front-word').textContent = message;
+        document.getElementById('fc-front-pron').textContent = 'Hãy quay lại chỉnh sửa và thêm thuật ngữ cùng định nghĩa.';
+        document.getElementById('fc-back-def').textContent = '';
+        document.getElementById('fc-back-syn').style.display = 'none';
+        document.getElementById('fc-back-ex').style.display = 'none';
+        document.getElementById('fc-counter').textContent = '0 / 0';
+        document.getElementById('fc-counter-progress').textContent = '0 / 0';
+        document.getElementById('word-list-count').textContent = '0/0 đã thuộc';
+        wordListContainer.innerHTML = '<p class="study-empty-message">Chưa có thẻ nào để học.</p>';
+    }
+
     function updateUI() {
-        if (wordsArray.length === 0) return;
+        if (wordsArray.length === 0) {
+            showStudyEmptyState();
+            return;
+        }
         const currentWord = wordsArray[currentIndex];
 
         flashcard.classList.remove('is-flipped');
@@ -1434,20 +1640,27 @@ if (currentPage === 'study') {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 document.getElementById('study-set-title').textContent = data.title;
-                wordsArray = data.words || [];
+                wordsArray = normalizeVocabularyWords(data.words);
+                currentIndex = 0;
+                // Hiển thị thẻ đầu tiên ngay; việc tải tiến độ không được làm chậm buổi học.
+                updateUI();
 
                 if (currentUser) {
                     const progressRef = doc(db, "user_progress", `${currentUser.uid}_${setId}`);
-                    const progressSnap = await getDoc(progressRef);
-                    if (progressSnap.exists()) {
-                        // Nạp dữ liệu cấu trúc mới vào
-                        studyProgress = progressSnap.data().learnedCards || {};
+                    try {
+                        const progressSnap = await getDoc(progressRef);
+                        if (progressSnap.exists()) {
+                            // Nạp dữ liệu cấu trúc mới vào
+                            studyProgress = progressSnap.data().learnedCards || {};
+                        }
+                    } catch (progressError) {
+                        console.warn('Không thể tải tiến độ, vẫn bắt đầu học với dữ liệu bộ thẻ.', progressError);
                     }
                     // Hiện nút Reset và gắn sự kiện
                     const btnReset = document.getElementById('btn-reset-progress');
                     if (btnReset) {
                         btnReset.style.display = 'inline-block';
-                        btnReset.addEventListener('click', async () => {
+                        btnReset.onclick = async () => {
                             if (confirm("Hành động này sẽ xóa trạng thái Đã thuộc và lịch sử Lặp lại ngắt quãng của bộ thẻ này. Bạn muốn học lại từ đầu?")) {
                                 try {
                                     await deleteDoc(progressRef); // Xóa thẳng file tiến độ trên Firebase
@@ -1455,7 +1668,7 @@ if (currentPage === 'study') {
                                     window.location.reload(); // Tải lại trang
                                 } catch (error) { console.error(error); }
                             }
-                        });
+                        };
                     }
 
 
@@ -1468,10 +1681,13 @@ if (currentPage === 'study') {
 
                 updateUI();
             } else {
-                alert("Bộ thẻ không tồn tại hoặc đã bị xóa.");
+                showStudyEmptyState('Không tìm thấy bộ thẻ này.');
+                showError("Bộ thẻ không tồn tại hoặc đã bị xóa.");
             }
         } catch (error) {
             console.error("Lỗi:", error);
+            showStudyEmptyState('Không thể tải bộ thẻ.');
+            showError('Không thể tải bộ thẻ. Vui lòng thử lại.');
         }
     }
 
@@ -1515,6 +1731,7 @@ if (currentPage === 'study') {
 
     // --- CẬP NHẬT: LOGIC PHÂN LOẠI SM-2 KHI BẤM NÚT ---
     document.getElementById('btn-fail').addEventListener('click', () => {
+        if (!wordsArray[currentIndex]) return;
         
         // Lấy chính xác thời gian hiện tại để thẻ đáo hạn ngay lập tức
         let nextDate = new Date(); 
@@ -1535,6 +1752,7 @@ if (currentPage === 'study') {
     });
     
     document.getElementById('btn-pass').addEventListener('click', () => {
+        if (!wordsArray[currentIndex]) return;
         // Nút "Đã thuộc" -> Đóng gói cất đi, không đưa vào SRS
         studyProgress[currentIndex] = {
             status: 'learned'
@@ -1576,6 +1794,8 @@ if (currentPage === 'repetition') {
     const flashcardContainer = document.getElementById('fc-container');
     const srsControls = document.getElementById('srs-controls-panel');
     const counterDisplay = document.getElementById('srs-total-count');
+    const overdueCountDisplay = document.getElementById('srs-overdue-count');
+    const overdueMetric = document.getElementById('srs-overdue-metric');
     const srsListContainer = document.getElementById('srs-word-list-container'); 
     const srsFeedback = document.getElementById('srs-feedback');
     const srsListToggle = document.getElementById('btn-toggle-srs-list');
@@ -1695,10 +1915,48 @@ if (currentPage === 'repetition') {
             : `Không có thẻ đến hạn · ${allUpcomingCards.length} thẻ trong kế hoạch`;
     }
 
+    function getStartOfTodayTimestamp() {
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        return startOfToday.getTime();
+    }
+
+    function interleaveDueCards(overdueCards, todayCards) {
+        const ordered = [];
+        let overdueIndex = 0;
+        let todayIndex = 0;
+
+        // Ưu tiên nợ cũ, nhưng sau mỗi 4 thẻ nợ sẽ chèn một thẻ đến hạn hôm nay.
+        while (overdueIndex < overdueCards.length || todayIndex < todayCards.length) {
+            for (let count = 0; count < 4 && overdueIndex < overdueCards.length; count++) {
+                ordered.push(overdueCards[overdueIndex++]);
+            }
+            if (todayIndex < todayCards.length) ordered.push(todayCards[todayIndex++]);
+            if (overdueIndex >= overdueCards.length) {
+                while (todayIndex < todayCards.length) ordered.push(todayCards[todayIndex++]);
+            }
+        }
+        return ordered;
+    }
+
+    function updateDueMetrics() {
+        const startOfToday = getStartOfTodayTimestamp();
+        const remainingCards = dueCards.slice(currentCardIndex);
+        const overdueCount = remainingCards.filter((item) => item.progress.nextReview < startOfToday).length;
+        const todayCount = remainingCards.length - overdueCount;
+
+        counterDisplay.textContent = todayCount;
+        if (overdueCountDisplay) overdueCountDisplay.textContent = overdueCount;
+        if (overdueMetric) overdueMetric.hidden = overdueCount === 0;
+    }
+
     // 2. GOM THẺ VÀ TÁCH MẢNG
     async function fetchDueCards() {
         if (!currentUser) return;
         try {
+            dueCards = [];
+            allUpcomingCards = [];
+            currentCardIndex = 0;
             const q = query(collection(db, "user_progress"), where("userId", "==", currentUser.uid));
             const querySnapshot = await getDocs(q);
             const now = new Date().getTime();
@@ -1709,7 +1967,7 @@ if (currentPage === 'repetition') {
                 if (!progressData.setId) return null;
                 const setDocSnap = await getDoc(doc(db, "study_sets", progressData.setId));
                 if (!setDocSnap.exists()) return null;
-                return { progressData, wordsArray: setDocSnap.data().words || [] };
+                return { progressData, wordsArray: normalizeVocabularyWords(setDocSnap.data().words) };
             }));
 
             for (const item of progressWithSets) {
@@ -1721,26 +1979,37 @@ if (currentPage === 'repetition') {
                 for (const [index, pData] of Object.entries(learnedCards)) {
                     if (pData.status === 'reviewing') {
                         if (!wordsArray[index]) continue;
+                        const reviewTimestamp = Number(pData.nextReview);
+                        const normalizedProgress = {
+                            ...pData,
+                            // Bản dữ liệu cũ thiếu nextReview vẫn được đưa vào ôn thay vì biến mất khỏi lịch.
+                            nextReview: Number.isFinite(reviewTimestamp) ? reviewTimestamp : now
+                        };
                         const cardObj = {
                             setId: setId,
                             wordIndex: index,
                             wordData: wordsArray[index],
-                            progress: pData
+                            progress: normalizedProgress
                         };
                         
                         // 1. Cho vào mảng hiển thị tổng
                         allUpcomingCards.push(cardObj); 
 
                         // 2. CHỈ thẻ nào đến hạn mới đưa vào mảng học 3D
-                        if (pData.nextReview <= now) {
+                        if (normalizedProgress.nextReview <= now) {
                             dueCards.push(cardObj);
                         }
                     }
                 }
             }
 
-            // Sắp xếp cả 2 mảng theo thứ tự ngày xa dần
-            dueCards.sort((a, b) => a.progress.nextReview - b.progress.nextReview);
+            // Nợ cũ được ưu tiên, đồng thời xen kẽ thẻ đến hạn hôm nay để nhịp ôn luôn cân bằng.
+            const startOfToday = getStartOfTodayTimestamp();
+            const overdueCards = dueCards.filter((item) => item.progress.nextReview < startOfToday)
+                .sort((a, b) => a.progress.nextReview - b.progress.nextReview);
+            const todayCards = dueCards.filter((item) => item.progress.nextReview >= startOfToday)
+                .sort((a, b) => a.progress.nextReview - b.progress.nextReview);
+            dueCards = interleaveDueCards(overdueCards, todayCards);
             allUpcomingCards.sort((a, b) => a.progress.nextReview - b.progress.nextReview);
             
             updateUI();
@@ -1753,7 +2022,7 @@ if (currentPage === 'repetition') {
 
     // 3. CẬP NHẬT THẺ 3D
     function updateUI() {
-        counterDisplay.textContent = dueCards.length - currentCardIndex;
+        updateDueMetrics();
         srsControls.style.display = 'none';
         flashcard.classList.remove('is-flipped');
 

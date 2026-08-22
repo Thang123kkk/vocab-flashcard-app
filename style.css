@@ -398,6 +398,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .vocab-input-card:focus-within { border-color: #c7d2fe; box-shadow: var(--shadow-md); }
 .card-number { font-weight: bold; font-size: 18px; color: #111; width: 20px; }
 .card-fields { flex-grow: 1; }
+.create-page .field-group.has-validation-error label { color: #dc2626; }
+.create-page .field-input.is-invalid { border-bottom-color: #ef4444 !important; box-shadow: 0 2px 0 -1px #ef4444; }
+.create-page .field-error { display: block; margin-top: 5px; color: #dc2626; font-size: 11px; font-weight: 700; line-height: 1.35; }
+.create-page .lookup-status { display: block; min-height: 14px; margin-top: 5px; color: #64748b; font-size: 10px; line-height: 1.35; }
+.create-page .lookup-status[data-state="loading"] { color: #2563eb; }
+.create-page .lookup-status[data-state="success"] { color: #15803d; }
+.create-page .lookup-status[data-state="error"] { color: #b45309; }
 
 /* Lưới input chia 2 cột */
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
@@ -550,6 +557,60 @@ input:checked + .slider:before { transform: translateX(20px); }
 /* Hướng dẫn sử dụng */
 .guide-modal-content { max-width: 620px; }.guide-eyebrow { margin-bottom: 2px; color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }.guide-intro { margin: 8px 0 22px; color: var(--gray-600); }.guide-steps { display: grid; gap: 12px; }.guide-step { display: flex; align-items: flex-start; gap: 14px; padding: 14px; border: 1px solid #e8edf5; border-radius: 14px; background: #fafbff; }.guide-step h4 { color: var(--gray-900); font-size: 15px; }.guide-step p { margin-top: 3px; color: var(--gray-600); font-size: 13px; line-height: 1.5; }.guide-icon { display: grid; flex: 0 0 38px; width: 38px; height: 38px; place-items: center; border-radius: 11px; }.guide-icon-purple { color: #6d28d9; background: #ede9fe; }.guide-icon-blue { color: #2563eb; background: #dbeafe; }.guide-icon-orange { color: #c2410c; background: #ffedd5; }.guide-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }.guide-footer a { text-decoration: none; }
 .about-modal-content { max-width: 760px; }.about-modal-lead { margin: 8px 0 20px; color: #475569; font-size: 15px; line-height: 1.6; }.about-modal-sections { display: grid; gap: 12px; }.about-modal-section { display: grid; grid-template-columns: 39px minmax(0, 1fr); gap: 13px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 15px; background: #fbfdff; }.about-modal-index { display: grid; width: 39px; height: 39px; place-items: center; border-radius: 12px; color: #1d4ed8; background: #dbeafe; font-size: 12px; font-weight: 800; }.about-modal-index-red { color: #dc2626; background: #fee2e2; }.about-modal-index-dark { color: #fff; background: #111827; }.about-modal-section h4 { margin: 2px 0 7px; color: #111827; font-size: 16px; }.about-modal-section p { margin-top: 9px; color: #64748b; font-size: 13px; line-height: 1.62; }.about-modal-section p:first-of-type { margin-top: 0; }
+
+/* Popup Hướng dẫn / Giới thiệu: giữ phần đầu rõ ràng khi nội dung dài. */
+.guide-modal-content .modal-header,
+.about-modal-content .modal-header { position: sticky; top: -26px; z-index: 2; margin: -26px -26px 14px; padding: 24px 26px 12px; background: linear-gradient(180deg, #fff 78%, rgba(255,255,255,.92)); }
+.guide-modal-content .close-btn,
+.about-modal-content .close-btn { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; border: 1px solid #e2e8f0; border-radius: 11px; color: #475569; background: #f8fafc; font-size: 16px; }
+.guide-modal-content .close-btn:hover,
+.about-modal-content .close-btn:hover { color: #fff; border-color: #111827; background: #111827; }
+
+@media (max-width: 640px) {
+    /* Bottom sheet có chiều cao phù hợp Safari mobile và không che nút đóng. */
+    body[data-page="home"] .modal-overlay { align-items: flex-end; padding: 10px; }
+    body[data-page="home"] .guide-modal-content,
+    body[data-page="home"] .about-modal-content {
+        width: 100%;
+        max-height: min(84dvh, 720px);
+        padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+        border-radius: 22px 22px 16px 16px;
+        overscroll-behavior: contain;
+    }
+    body[data-page="home"] .guide-modal-content .modal-header,
+    body[data-page="home"] .about-modal-content .modal-header {
+        top: -18px;
+        align-items: flex-start;
+        gap: 10px;
+        margin: -18px -16px 13px;
+        padding: 17px 16px 10px;
+    }
+    body[data-page="home"] .modal-header h3 { font-size: 19px; line-height: 1.2; }
+    body[data-page="home"] .guide-eyebrow { font-size: 9px; }
+    body[data-page="home"] .guide-intro,
+    body[data-page="home"] .about-modal-lead { margin: 7px 0 15px; font-size: 13px; line-height: 1.52; }
+    body[data-page="home"] .guide-steps,
+    body[data-page="home"] .about-modal-sections { gap: 9px; }
+    body[data-page="home"] .guide-step { gap: 10px; padding: 12px; border-radius: 13px; }
+    body[data-page="home"] .guide-icon { flex-basis: 34px; width: 34px; height: 34px; border-radius: 10px; }
+    body[data-page="home"] .guide-step h4 { font-size: 14px; line-height: 1.3; }
+    body[data-page="home"] .guide-step p { font-size: 12px; line-height: 1.46; }
+    body[data-page="home"] .about-modal-section { grid-template-columns: 31px minmax(0, 1fr); gap: 9px; padding: 12px; border-radius: 13px; }
+    body[data-page="home"] .about-modal-index { width: 31px; height: 31px; border-radius: 10px; font-size: 10px; }
+    body[data-page="home"] .about-modal-section h4 { margin: 1px 0 6px; font-size: 14px; line-height: 1.32; }
+    body[data-page="home"] .about-modal-section p { margin-top: 8px; font-size: 12px; line-height: 1.52; }
+    body[data-page="home"] .guide-footer {
+        position: sticky;
+        bottom: calc(-18px - env(safe-area-inset-bottom));
+        z-index: 2;
+        margin: 16px -16px calc(-18px - env(safe-area-inset-bottom));
+        padding: 11px 16px calc(11px + env(safe-area-inset-bottom));
+        border-top: 1px solid #edf1f7;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: blur(10px);
+    }
+    body[data-page="home"] .guide-footer .btn { min-height: 42px; font-size: 13px; }
+}
 .settings-modal-content { max-width: 520px; }.settings-intro { margin: 9px 0 20px; color: #64748b; font-size: 13px; line-height: 1.55; }.settings-actions { display: grid; gap: 10px; }.settings-action { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 72px; padding: 11px; border: 1px solid #dbeafe; border-radius: 15px; color: #334155; background: #fff; cursor: pointer; font: inherit; text-align: left; transition: border-color .2s ease, background .2s ease, transform .2s ease; }.settings-action:hover { border-color: #2563eb; background: #f8fbff; transform: translateY(-1px); }.settings-action-icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border-radius: 12px; color: #1d4ed8; background: #dbeafe; }.settings-action > span:nth-child(2) { display: grid; gap: 2px; }.settings-action strong { color: #1f2937; font-size: 14px; }.settings-action small { color: #64748b; font-size: 11px; }.settings-action > i:last-child { margin-left: auto; color: #94a3b8; font-size: 11px; }.settings-action-danger { border-color: #fecaca; }.settings-action-danger .settings-action-icon { color: #dc2626; background: #fee2e2; }.settings-action-danger:hover { border-color: #dc2626; background: #fffafa; }.settings-action-danger strong { color: #b91c1c; }
 
 
@@ -983,8 +1044,8 @@ body[data-page="repetition"] { background: radial-gradient(circle at 85% -15%, #
 .repetition-session-summary { display: flex; align-items: center; justify-content: space-between; width: min(100%, 780px); margin: 0 auto 14px; padding: 10px 13px; border: 1px solid #dbeafe; border-radius: 14px; color: #64748b; background: rgba(255,255,255,.74); font-size: 12px; font-weight: 700; }
 .repetition-session-summary span { display: inline-flex; align-items: center; gap: 7px; }
 .repetition-session-summary span i { color: #2563eb; }
-.repetition-session-summary strong { color: #475569; font-size: 12px; }
-.repetition-session-summary b { margin-right: 3px; color: #dc2626; font-size: 17px; }
+.repetition-session-label { color: #64748b; }
+.repetition-due-metrics { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }.repetition-due-pill { display: inline-flex; align-items: baseline; min-height: 34px; gap: 6px; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 10px; color: #64748b; background: #fff; box-shadow: 0 2px 6px rgba(15,23,42,.035); white-space: nowrap; }.repetition-due-pill b { color: #172554; font-size: 17px; line-height: 1; }.repetition-due-pill small { color: inherit; font-size: 10px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }.repetition-today-pill { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }.repetition-today-pill b { color: #1d4ed8; }.repetition-overdue-metric { border-color: #fecdd3; background: #fff1f2; color: #be123c; }.repetition-overdue-metric b { color: #e11d48; }.repetition-overdue-metric[hidden] { display: none; }
 .repetition-summary { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-bottom: 24px; padding: 27px 30px; border: 1px solid #dbeafe; border-radius: 22px; background: radial-gradient(circle at 86% 15%, #dbeafe 0, transparent 26%), radial-gradient(circle at 94% 90%, #fee2e2 0, transparent 24%), #fff; box-shadow: 0 16px 35px rgba(15,23,42,.07); }
 .repetition-summary h1 { max-width: 650px; color: var(--gray-900); font-size: clamp(25px, 3vw, 35px); letter-spacing: -.04em; }
 .repetition-summary p:not(.eyebrow) { margin-top: 8px; color: var(--gray-600); font-size: 14px; }
@@ -1022,7 +1083,7 @@ body[data-page="repetition"] .word-list-item { border-left: 0; border-radius: 14
 
 @media (max-width: 640px) {
     .repetition-page { padding-top: 18px !important; }
-    .repetition-session-summary { margin-bottom: 12px; }
+    .repetition-session-summary { align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 12px; }.repetition-due-metrics { justify-content: flex-start; }
     .repetition-guide-btn { padding: 8px 10px; }
     .repetition-summary { align-items: flex-start; flex-direction: column; gap: 18px; padding: 23px 20px; }
     .repetition-count { width: 100%; grid-template-columns: 1fr auto; justify-items: start; padding: 12px 15px; }
