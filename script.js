@@ -2543,16 +2543,17 @@ if (currentPage === 'repetition') {
     function renderSRSList() {
         if (!srsListContainer) return;
         srsListContainer.innerHTML = '';
-        
-        const now = new Date().getTime();
+
+        const dueCutoff = getStartOfTomorrowTimestamp();
 
         allUpcomingCards.forEach((item) => {
             const card = item.wordData;
             const reviewDate = new Date(item.progress.nextReview);
             const dateString = reviewDate.toLocaleDateString('vi-VN');
             
-            // Nếu thời gian hẹn <= hiện tại tức là đang nợ bài
-            const isDue = item.progress.nextReview <= now;
+            // SRS hoạt động theo ngày: mọi thẻ có lịch trong hôm nay đều đến hạn,
+            // không phụ thuộc vào giờ mà thẻ được đánh giá ở lần trước.
+            const isDue = item.progress.nextReview < dueCutoff;
 
             // Làm mờ những thẻ chưa đến ngày học
             const row = document.createElement('div');
@@ -2573,7 +2574,7 @@ if (currentPage === 'repetition') {
             `;
             srsListContainer.appendChild(row);
         });
-        const dueCount = allUpcomingCards.filter((item) => item.progress.nextReview <= now).length;
+        const dueCount = allUpcomingCards.filter((item) => item.progress.nextReview < dueCutoff).length;
         srsListSummary.textContent = dueCount > 0
             ? `${dueCount} thẻ cần ôn · ${allUpcomingCards.length} thẻ trong kế hoạch`
             : `Không có thẻ đến hạn · ${allUpcomingCards.length} thẻ trong kế hoạch`;
@@ -2583,6 +2584,13 @@ if (currentPage === 'repetition') {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
         return startOfToday.getTime();
+    }
+
+    function getStartOfTomorrowTimestamp() {
+        const startOfTomorrow = new Date();
+        startOfTomorrow.setHours(0, 0, 0, 0);
+        startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+        return startOfTomorrow.getTime();
     }
 
     function interleaveDueCards(overdueCards, todayCards) {
@@ -2624,6 +2632,7 @@ if (currentPage === 'repetition') {
             const q = query(collection(db, "user_progress"), where("userId", "==", currentUser.uid));
             const querySnapshot = await getDocs(q);
             const now = new Date().getTime();
+            const dueCutoff = getStartOfTomorrowTimestamp();
 
             // Tải các bộ thẻ song song thay vì chờ lần lượt từng bộ.
             const progressWithSets = await Promise.all(querySnapshot.docs.map(async (progressDoc) => {
@@ -2659,8 +2668,8 @@ if (currentPage === 'repetition') {
                         // 1. Cho vào mảng hiển thị tổng
                         allUpcomingCards.push(cardObj); 
 
-                        // 2. CHỈ thẻ nào đến hạn mới đưa vào mảng học 3D
-                        if (normalizedProgress.nextReview <= now) {
+                        // 2. Đưa mọi thẻ có lịch đến hết hôm nay vào phiên ôn.
+                        if (normalizedProgress.nextReview < dueCutoff) {
                             dueCards.push(cardObj);
                         }
                     }
