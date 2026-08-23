@@ -2763,9 +2763,16 @@ if (currentPage === 'repetition') {
         }
         allUpcomingCards.sort((a, b) => a.progress.nextReview - b.progress.nextReview);
 
+        // Đưa thẻ cũ về mặt trước ngay lập tức trước khi gắn nội dung thẻ mới.
+        // Nếu để transition lật chạy ở đây, mặt sau sẽ làm lộ nghĩa của thẻ kế tiếp.
+        flashcard.classList.add('is-resetting');
+        flashcard.classList.remove('is-flipped');
+        void flashcard.offsetWidth;
+
         currentCardIndex++;
         recordLearningActivity(currentUser.uid, 'reviewed');
         updateUI();
+        flashcard.classList.remove('is-resetting');
         renderSRSList(); // Chạy lại hàm vẽ để thay đổi nhãn đỏ thành xanh
         flashcardContainer?.classList.remove('srs-card-advance');
         void flashcardContainer?.offsetWidth;

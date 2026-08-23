@@ -518,6 +518,9 @@ input:checked + .slider:before { transform: translateX(20px); }
     cursor: pointer;
 }
 
+/* Trở về mặt trước tức thời trước khi thay nội dung sang thẻ kế tiếp. */
+.flashcard.is-resetting { transition: none; }
+
 /* Lớp này sẽ được JS thêm vào khi lật thẻ */
 .flashcard.is-flipped { transform: rotateX(180deg); } /* Lật theo trục ngang (lên/xuống) */
 
