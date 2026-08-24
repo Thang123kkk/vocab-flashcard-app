@@ -2136,8 +2136,21 @@ if (currentPage === 'study') {
         if (shouldUpdate) updateUI();
     }
 
-    function showStudyEmptyState(message = 'Bộ thẻ này chưa có từ vựng hợp lệ.') {
+    function resetStudyFlashcardBeforeContentChange() {
+        if (!flashcard.classList.contains('is-flipped')) return false;
+        flashcard.classList.add('is-resetting');
         flashcard.classList.remove('is-flipped');
+        // Chốt trạng thái mặt trước trước khi nội dung mặt sau được thay đổi.
+        void flashcard.offsetWidth;
+        return true;
+    }
+
+    function finishStudyFlashcardContentChange(wasReset) {
+        if (wasReset) flashcard.classList.remove('is-resetting');
+    }
+
+    function showStudyEmptyState(message = 'Bộ thẻ này chưa có từ vựng hợp lệ.') {
+        const wasReset = resetStudyFlashcardBeforeContentChange();
         document.getElementById('fc-front-word').textContent = message;
         document.getElementById('fc-front-pron').textContent = allWordsArray.length
             ? 'Bạn có thể chuyển về “Tất cả thẻ” để xem lại tiến độ.'
@@ -2151,6 +2164,7 @@ if (currentPage === 'study') {
         document.getElementById('word-list-count').textContent = `${learnedCount}/${allWordsArray.length} đã thuộc`;
         if (allWordsArray.length > 0) renderList();
         else wordListContainer.innerHTML = '<p class="study-empty-message">Chưa có thẻ nào để học.</p>';
+        finishStudyFlashcardContentChange(wasReset);
     }
 
     function updateUI() {
@@ -2159,8 +2173,7 @@ if (currentPage === 'study') {
             return;
         }
         const currentWord = wordsArray[currentIndex];
-
-        flashcard.classList.remove('is-flipped');
+        const wasReset = resetStudyFlashcardBeforeContentChange();
 
         // MẶT TRƯỚC: Chỉ hiện duy nhất từ vựng để tăng độ khó và tập trung
         document.getElementById('fc-front-word').textContent = currentWord.term;
@@ -2194,6 +2207,7 @@ if (currentPage === 'study') {
         document.getElementById('fc-counter').textContent = counterText;
         document.getElementById('fc-counter-progress').textContent = counterText;
         renderList();
+        finishStudyFlashcardContentChange(wasReset);
         if (autoPlayAudio.checked) window.setTimeout(() => speakWord(currentWord.term), 120);
     }
 
