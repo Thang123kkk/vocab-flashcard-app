@@ -49,6 +49,8 @@ pageTransition.className = 'page-transition';
 pageTransition.setAttribute('aria-hidden', 'true');
 pageTransition.innerHTML = '<div class="page-transition-content"><span class="brand-loader-mark"><img src="/assets/brand-mark.png" alt=""></span><p id="page-transition-label">Đang chuyển trang</p></div>';
 document.body.append(pageTransition);
+let pageNavigationInProgress = false;
+const activeCardTransitions = new WeakSet();
 
 function showPageTransition(label = 'Đang chuyển trang') {
     document.getElementById('page-transition-label').textContent = label;
@@ -58,7 +60,68 @@ function showPageTransition(label = 'Đang chuyển trang') {
 
 function hidePageTransition() {
     pageTransition.classList.remove('is-visible');
+    pageTransition.classList.remove('is-navigation-transition');
     pageTransition.setAttribute('aria-hidden', 'true');
+}
+
+function navigateTo(target, label = 'Đang chuyển trang') {
+    if (pageNavigationInProgress) return;
+    const targetUrl = new URL(target, window.location.href);
+    if (targetUrl.origin !== window.location.origin || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        window.location.assign(targetUrl.href);
+        return;
+    }
+
+    pageNavigationInProgress = true;
+    document.documentElement.classList.add('is-page-leaving');
+    pageTransition.classList.add('is-navigation-transition');
+    showPageTransition(label);
+    window.setTimeout(() => window.location.assign(targetUrl.href), 180);
+}
+
+async function transitionCardContent(container, updateContent, direction = 'next') {
+    if (!container || activeCardTransitions.has(container)) return false;
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion || typeof container.animate !== 'function') {
+        updateContent();
+        return true;
+    }
+
+    activeCardTransitions.add(container);
+    container.classList.add('is-changing-card');
+    const horizontalOffset = direction === 'previous' ? 26 : direction === 'next' ? -26 : 0;
+    const verticalOffset = direction === 'random' ? -10 : 0;
+    let outgoingAnimation;
+    let contentUpdated = false;
+
+    try {
+        outgoingAnimation = container.animate([
+            { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' },
+            { opacity: 0, transform: `translate3d(${horizontalOffset}px, ${verticalOffset}px, 0) scale(.985)` }
+        ], { duration: 145, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+        await outgoingAnimation.finished;
+
+        // Nội dung chỉ được thay khi toàn bộ thẻ đã ẩn, nên mặt sau mới không thể bị lộ.
+        updateContent();
+        contentUpdated = true;
+        outgoingAnimation.cancel();
+
+        const incomingX = horizontalOffset === 0 ? 0 : -horizontalOffset;
+        const incomingY = direction === 'random' ? 10 : 0;
+        const incomingAnimation = container.animate([
+            { opacity: 0, transform: `translate3d(${incomingX}px, ${incomingY}px, 0) scale(.985)` },
+            { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }
+        ], { duration: 195, easing: 'cubic-bezier(.16,1,.3,1)' });
+        await incomingAnimation.finished;
+        return true;
+    } catch (error) {
+        outgoingAnimation?.cancel();
+        if (!contentUpdated) updateContent();
+        return true;
+    } finally {
+        container.classList.remove('is-changing-card');
+        activeCardTransitions.delete(container);
+    }
 }
 
 function applyTheme(theme) {
@@ -91,10 +154,22 @@ document.addEventListener('click', (event) => {
     if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target || link.hasAttribute('download') || link.dataset.noLoader !== undefined) return;
     const targetUrl = new URL(link.href, window.location.href);
     const isSameDocument = targetUrl.pathname === window.location.pathname && targetUrl.search === window.location.search;
-    if (targetUrl.origin === window.location.origin && !isSameDocument) showPageTransition();
+    if (targetUrl.origin === window.location.origin && !isSameDocument) {
+        event.preventDefault();
+        navigateTo(targetUrl.href);
+    }
 });
-window.addEventListener('beforeunload', () => showPageTransition());
-window.addEventListener('pageshow', hidePageTransition);
+window.addEventListener('pageshow', (event) => {
+    pageNavigationInProgress = false;
+    document.documentElement.classList.remove('is-page-leaving');
+    hidePageTransition();
+    if (event.persisted && typeof document.body.animate === 'function') {
+        document.body.animate([
+            { opacity: 0, transform: 'translateY(7px)' },
+            { opacity: 1, transform: 'none' }
+        ], { duration: 230, easing: 'cubic-bezier(.16,1,.3,1)' });
+    }
+});
 
 const accountDrawer = document.createElement('aside');
 accountDrawer.id = 'account-drawer';
@@ -166,7 +241,7 @@ document.getElementById('btn-account-settings')?.addEventListener('click', () =>
     if (currentPage === 'home') {
         document.getElementById('settings-modal')?.style.setProperty('display', 'flex');
     } else {
-        window.location.href = '/#settings';
+        navigateTo('/#settings');
     }
 });
 
@@ -444,8 +519,7 @@ function renderSearchResults(cards, hasSearchCriteria) {
         result.addEventListener('click', () => {
             const id = card.dataset.setId;
             if (!id) return;
-            showPageTransition('Đang mở bộ thẻ');
-            window.location.href = `/study/?id=${encodeURIComponent(id)}`;
+            navigateTo(`/study/?id=${encodeURIComponent(id)}`, 'Đang mở bộ thẻ');
         });
         searchResults.append(result);
     });
@@ -1100,7 +1174,7 @@ async function loadSets(pageType) {
 
             // Cả thẻ là một hành động rõ ràng: chạm/click hoặc Enter/Space để mở bài học.
             const openStudySet = () => {
-                window.location.href = `/study/?id=${docSnap.id}`;
+                navigateTo(`/study/?id=${docSnap.id}`, 'Đang mở bộ thẻ');
             };
             card.addEventListener('click', openStudySet);
             card.addEventListener('keydown', (event) => {
@@ -1436,7 +1510,7 @@ if (currentPage === 'create') {
                 const data = docSnap.data();
                 if (data.ownerId !== user.uid) {
                     showError('Bạn không có quyền chỉnh sửa bộ thẻ này.');
-                    window.setTimeout(() => { window.location.href = '/created/'; }, 800);
+                    window.setTimeout(() => navigateTo('/created/'), 800);
                     return;
                 }
                 document.getElementById('set-title').value = data.title;
@@ -1487,14 +1561,14 @@ if (currentPage === 'create') {
             if (editId) {
                 await updateDoc(doc(db, "study_sets", editId), setData);
                 showSuccess(isPublicRequest ? 'Đã cập nhật và gửi lại để admin duyệt.' : 'Cập nhật bộ thẻ thành công!');
-                setTimeout(() => window.location.href = `/study/?id=${editId}`, 500);
+                setTimeout(() => navigateTo(`/study/?id=${editId}`), 500);
             } else {
                 setData.ownerId = currentUser.uid;
                 setData.authorName = currentUser.displayName;
                 setData.timestamp = new Date();
                 await addDoc(collection(db, "study_sets"), setData);
                 showSuccess(isPublicRequest ? 'Đã gửi bộ thẻ chờ admin duyệt.' : 'Tạo bộ thẻ thành công!');
-                setTimeout(() => window.location.href = '/created/', 800);
+                setTimeout(() => navigateTo('/created/'), 800);
             }
         } catch (error) {
             console.error("Lỗi:", error);
@@ -2035,7 +2109,7 @@ if (currentPage === 'create') {
                     effectiveLimit = String(availableCount);
                 }
 
-                window.location.href = `/quiz/?id=${encodeURIComponent(currentSetId)}&filter=${encodeURIComponent(filter)}&mode=${encodeURIComponent(mode)}&limit=${encodeURIComponent(effectiveLimit)}`;
+                navigateTo(`/quiz/?id=${encodeURIComponent(currentSetId)}&filter=${encodeURIComponent(filter)}&mode=${encodeURIComponent(mode)}&limit=${encodeURIComponent(effectiveLimit)}`);
             } catch (error) {
                 console.error('Không thể kiểm tra bộ lọc Quiz:', error);
                 showError(error.message || 'Không thể kiểm tra số lượng từ. Vui lòng thử lại.');
@@ -2059,6 +2133,7 @@ if (currentPage === 'study') {
     let ignoreNextFlashcardClick = false;
 
     const flashcard = document.getElementById('flashcard');
+    const flashcardContainer = document.getElementById('fc-container');
     const wordListContainer = document.getElementById('word-list-container');
     const studyCardFilter = document.getElementById('study-card-filter');
     const studyCardFilterTrigger = document.getElementById('study-card-filter-trigger');
@@ -2341,16 +2416,20 @@ if (currentPage === 'study') {
         studyCardFilterTrigger.setAttribute('aria-expanded', String(shouldOpen));
     });
     studyCardFilterMenu?.querySelectorAll('[data-study-filter]').forEach((option) => {
-        option.addEventListener('click', () => {
-            activeStudyFilter = option.dataset.studyFilter;
+        option.addEventListener('click', async () => {
+            if (activeCardTransitions.has(flashcardContainer)) return;
+            const nextFilter = option.dataset.studyFilter;
             studyCardFilterLabel.textContent = option.querySelector('span')?.childNodes[0]?.textContent.trim() || 'Tất cả thẻ';
             studyCardFilterMenu.querySelectorAll('[data-study-filter]').forEach((item) => {
                 item.classList.toggle('is-active', item === option);
             });
             closeStudyFilterMenu();
-            applyStudyFilter();
+            await transitionCardContent(flashcardContainer, () => {
+                activeStudyFilter = nextFilter;
+                applyStudyFilter();
+            }, 'random');
             showToast(
-                activeStudyFilter === 'unlearned'
+                nextFilter === 'unlearned'
                     ? 'Đang chỉ hiển thị những thẻ chưa học.'
                     : 'Đang hiển thị tất cả thẻ trong bộ.',
                 'info'
@@ -2369,13 +2448,19 @@ if (currentPage === 'study') {
         while (nextIndex === currentIndex) nextIndex = Math.floor(Math.random() * wordsArray.length);
         return nextIndex;
     };
-    document.getElementById('btn-next').addEventListener('click', () => {
-        if (isRandomMode) { currentIndex = getRandomIndex(); updateUI(); }
-        else if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); }
+    document.getElementById('btn-next').addEventListener('click', async () => {
+        if (isRandomMode) {
+            await transitionCardContent(flashcardContainer, () => { currentIndex = getRandomIndex(); updateUI(); }, 'random');
+        } else if (currentIndex < wordsArray.length - 1) {
+            await transitionCardContent(flashcardContainer, () => { currentIndex++; updateUI(); }, 'next');
+        }
     });
-    document.getElementById('btn-prev').addEventListener('click', () => {
-        if (isRandomMode) { currentIndex = getRandomIndex(); updateUI(); }
-        else if (currentIndex > 0) { currentIndex--; updateUI(); }
+    document.getElementById('btn-prev').addEventListener('click', async () => {
+        if (isRandomMode) {
+            await transitionCardContent(flashcardContainer, () => { currentIndex = getRandomIndex(); updateUI(); }, 'random');
+        } else if (currentIndex > 0) {
+            await transitionCardContent(flashcardContainer, () => { currentIndex--; updateUI(); }, 'previous');
+        }
     });
     btnRandom.addEventListener('click', () => {
         if (wordsArray.length < 2) return showError('Bộ thẻ cần ít nhất 2 từ để học ngẫu nhiên.');
@@ -2402,6 +2487,7 @@ if (currentPage === 'study') {
 
     // --- CẬP NHẬT: LOGIC PHÂN LOẠI SM-2 KHI BẤM NÚT ---
     document.getElementById('btn-fail').addEventListener('click', () => {
+        if (activeCardTransitions.has(flashcardContainer)) return;
         if (!wordsArray[currentIndex]) return;
         if (!currentUser) return requestSignIn('lưu từ vào Lặp lại ngắt quãng');
         
@@ -2422,11 +2508,14 @@ if (currentPage === 'study') {
         navigator.vibrate?.(12);
         
         if (activeStudyFilter === 'unlearned') {
-            applyStudyFilter({ afterSourceIndex: sourceIndex });
-        } else if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); } else { renderList(); }
+            transitionCardContent(flashcardContainer, () => applyStudyFilter({ afterSourceIndex: sourceIndex }), 'next');
+        } else if (currentIndex < wordsArray.length - 1) {
+            transitionCardContent(flashcardContainer, () => { currentIndex++; updateUI(); }, 'next');
+        } else { renderList(); }
     });
     
     document.getElementById('btn-pass').addEventListener('click', () => {
+        if (activeCardTransitions.has(flashcardContainer)) return;
         if (!wordsArray[currentIndex]) return;
         if (!currentUser) return requestSignIn('lưu tiến độ học');
         // Nút "Đã thuộc" -> Đóng gói cất đi, không đưa vào SRS
@@ -2440,11 +2529,14 @@ if (currentPage === 'study') {
         navigator.vibrate?.(18);
         
         if (activeStudyFilter === 'unlearned') {
-            applyStudyFilter({ afterSourceIndex: sourceIndex });
-        } else if (currentIndex < wordsArray.length - 1) { currentIndex++; updateUI(); } else { renderList(); }
+            transitionCardContent(flashcardContainer, () => applyStudyFilter({ afterSourceIndex: sourceIndex }), 'next');
+        } else if (currentIndex < wordsArray.length - 1) {
+            transitionCardContent(flashcardContainer, () => { currentIndex++; updateUI(); }, 'next');
+        } else { renderList(); }
     });
 
     document.addEventListener('keydown', (e) => {
+        if (activeCardTransitions.has(flashcardContainer)) return;
         if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); flashcard.classList.toggle('is-flipped'); }
         if (e.code === 'ArrowRight') document.getElementById('btn-next').click();
         if (e.code === 'ArrowLeft') document.getElementById('btn-prev').click();
@@ -2777,20 +2869,17 @@ if (currentPage === 'repetition') {
         }
         allUpcomingCards.sort((a, b) => a.progress.nextReview - b.progress.nextReview);
 
-        // Đưa thẻ cũ về mặt trước ngay lập tức trước khi gắn nội dung thẻ mới.
-        // Nếu để transition lật chạy ở đây, mặt sau sẽ làm lộ nghĩa của thẻ kế tiếp.
-        flashcard.classList.add('is-resetting');
-        flashcard.classList.remove('is-flipped');
-        void flashcard.offsetWidth;
-
-        currentCardIndex++;
-        recordLearningActivity(currentUser.uid, 'reviewed');
-        updateUI();
-        flashcard.classList.remove('is-resetting');
+        await transitionCardContent(flashcardContainer, () => {
+            // Reset phép lật khi thẻ đang hoàn toàn ẩn rồi mới gắn nội dung mới.
+            flashcard.classList.add('is-resetting');
+            flashcard.classList.remove('is-flipped');
+            void flashcard.offsetWidth;
+            currentCardIndex++;
+            recordLearningActivity(currentUser.uid, 'reviewed');
+            updateUI();
+            flashcard.classList.remove('is-resetting');
+        }, 'next');
         renderSRSList(); // Chạy lại hàm vẽ để thay đổi nhãn đỏ thành xanh
-        flashcardContainer?.classList.remove('srs-card-advance');
-        void flashcardContainer?.offsetWidth;
-        flashcardContainer?.classList.add('srs-card-advance');
         if (srsFeedback) {
             srsFeedback.textContent = currentCardIndex < dueCards.length
                 ? `Đã ghi nhận “${ratingLabels[quality]}”. Hãy tiếp tục với từ tiếp theo.`
@@ -2825,7 +2914,7 @@ if (currentPage === 'repetition') {
 
     onAuthStateChanged(auth, (user) => {
         if (user) { fetchDueCards(); } 
-        else { alert("Vui lòng đăng nhập!"); window.location.href = "/"; }
+        else { alert("Vui lòng đăng nhập!"); navigateTo("/"); }
     });
 }
 
@@ -2921,7 +3010,7 @@ if (currentPage === 'quiz') {
             const setData = docSnap.data();
             if (!currentUser && setData.isPublic !== true) {
                 requestSignIn('làm trắc nghiệm với bộ thẻ riêng tư');
-                window.location.href = '/';
+                navigateTo('/');
                 return;
             }
             quizInitialized = true;
@@ -3137,8 +3226,8 @@ if (currentPage === 'quiz') {
         document.getElementById('quiz-progress-fill').style.width = '100%';
     }
 
-    document.getElementById('btn-quit-quiz').addEventListener('click', () => window.location.href = `/study/?id=${setId}`);
-    document.getElementById('btn-back-to-study').addEventListener('click', () => window.location.href = `/study/?id=${setId}`);
+    document.getElementById('btn-quit-quiz').addEventListener('click', () => navigateTo(`/study/?id=${setId}`));
+    document.getElementById('btn-back-to-study').addEventListener('click', () => navigateTo(`/study/?id=${setId}`));
     document.getElementById('btn-replay').addEventListener('click', () => window.location.reload());
 
     onAuthStateChanged(auth, (user) => {
