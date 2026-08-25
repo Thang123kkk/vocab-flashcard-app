@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-import { getFirestore, collection, getDocs, deleteDoc, doc, query, where ,addDoc,getDoc,setDoc,updateDoc    } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, deleteDoc, doc, query, where, addDoc, getDoc, setDoc, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
 // COPY LẠI CONFIG CỦA BẠN VÀO ĐÂY
@@ -31,6 +31,8 @@ themeToggle.setAttribute('aria-label', 'Chuyển chế độ tối');
 const navRight = document.querySelector('.top-nav .nav-right');
 if (navRight) navRight.insertBefore(themeToggle, avatarBtn || navRight.firstChild);
 const grid = document.getElementById('learning-sets-grid');
+const personalGrid = document.getElementById('personal-sets-grid');
+const personalLibrarySection = document.getElementById('personal-library-section');
 const searchModal = document.getElementById('search-modal');
 const searchInput = document.getElementById('search-sets');
 const searchEmpty = document.getElementById('search-empty');
@@ -725,6 +727,498 @@ function normalizeVocabularyWords(words) {
     return Array.isArray(words) ? words.map(normalizeVocabularyWord).filter(Boolean) : [];
 }
 
+// ============ THÊM TỪ NHANH TRÊN MỌI MÀN HÌNH ============
+const QUICK_ADD_LAST_SET_KEY = 'supervocab:quick-add:last-set';
+const quickAddSetCache = new Map();
+let quickAddLookupController = null;
+let quickAddLookupTimer = null;
+let quickAddLookupInFlightWord = '';
+let quickAddLastLookupWord = '';
+
+const quickAddModal = document.createElement('div');
+quickAddModal.id = 'quick-add-modal';
+quickAddModal.className = 'modal-overlay quick-add-modal';
+quickAddModal.style.display = 'none';
+quickAddModal.setAttribute('role', 'dialog');
+quickAddModal.setAttribute('aria-modal', 'true');
+quickAddModal.setAttribute('aria-labelledby', 'quick-add-title');
+quickAddModal.innerHTML = `
+    <div class="modal-content quick-add-modal-content">
+        <div class="modal-header">
+            <div><p class="guide-eyebrow">Ghi lại ngay khi gặp</p><h3 id="quick-add-title">Thêm từ nhanh</h3></div>
+            <button id="btn-close-quick-add" class="close-btn" type="button" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="quick-add-intro">Nhập thuật ngữ, SuperVocab sẽ tự tìm thông tin. Bạn có thể sửa trước khi lưu.</p>
+        <form id="quick-add-form">
+            <input id="quick-add-set" type="hidden">
+            <p id="quick-add-destination" class="quick-add-destination"><i class="fa-solid fa-layer-group"></i><span>Đang xác định bộ thẻ…</span></p>
+            <div class="quick-add-grid">
+                <label class="quick-add-field">Thuật ngữ
+                    <input id="quick-add-term" type="text" placeholder="VD: serendipity" autocomplete="off" required>
+                </label>
+                <label class="quick-add-field">Định nghĩa
+                    <input id="quick-add-definition" type="text" placeholder="Nghĩa tiếng Việt" required>
+                </label>
+            </div>
+            <div id="quick-add-definition-suggestions" class="quick-add-definition-suggestions" hidden aria-live="polite"></div>
+            <p id="quick-add-status" class="quick-add-status" aria-live="polite"></p>
+            <details class="quick-add-details">
+                <summary>Thông tin bổ sung <span>Tùy chọn</span></summary>
+                <div class="quick-add-grid">
+                    <label class="quick-add-field">Phát âm<input id="quick-add-pronunciation" type="text"></label>
+                    <label class="quick-add-field">Loại từ<input id="quick-add-type" type="text"></label>
+                    <label class="quick-add-field quick-add-field-wide">Ví dụ<input id="quick-add-example" type="text"></label>
+                    <label class="quick-add-field quick-add-field-wide">Từ đồng nghĩa<input id="quick-add-synonyms" type="text"></label>
+                </div>
+            </details>
+            <div class="quick-add-footer">
+                <span class="quick-add-shortcut"><kbd>Ctrl</kbd> + <kbd>K</kbd> hoặc <kbd>N</kbd></span>
+                <button id="btn-save-quick-add" class="btn btn-black" type="submit"><i class="fa-solid fa-plus"></i> Thêm vào bộ thẻ</button>
+            </div>
+        </form>
+    </div>`;
+document.body.appendChild(quickAddModal);
+
+const quickAddForm = document.getElementById('quick-add-form');
+const quickAddSetInput = document.getElementById('quick-add-set');
+const quickAddDestination = document.getElementById('quick-add-destination');
+const quickAddTermInput = document.getElementById('quick-add-term');
+const quickAddDefinitionInput = document.getElementById('quick-add-definition');
+const quickAddSuggestions = document.getElementById('quick-add-definition-suggestions');
+const quickAddStatus = document.getElementById('quick-add-status');
+const quickAddFields = {
+    definition: quickAddDefinitionInput,
+    pronunciation: document.getElementById('quick-add-pronunciation'),
+    type: document.getElementById('quick-add-type'),
+    example: document.getElementById('quick-add-example'),
+    synonyms: document.getElementById('quick-add-synonyms')
+};
+
+function setQuickAddStatus(message = '', state = '') {
+    quickAddStatus.textContent = message;
+    quickAddStatus.dataset.state = state;
+}
+
+function quickTermKey(value) {
+    return textValue(value).normalize('NFKC').replace(/\s+/g, ' ').toLocaleLowerCase('en');
+}
+
+function setQuickAutoValue(input, value, word) {
+    if (!input || !value || (input.value && !input.dataset.autoFilledFor)) return;
+    input.value = value;
+    input.dataset.autoFilledFor = word;
+}
+
+function clearQuickAutoValues(nextWord = '') {
+    Object.values(quickAddFields).forEach((input) => {
+        if (!input?.dataset.autoFilledFor || input.dataset.autoFilledFor === nextWord) return;
+        input.value = '';
+        delete input.dataset.autoFilledFor;
+    });
+}
+
+function getQuickDuplicate(setId, term) {
+    const setData = quickAddSetCache.get(setId);
+    const termKey = quickTermKey(term);
+    if (!setData || !termKey) return null;
+    return normalizeVocabularyWords(setData.words).find((word) => quickTermKey(word.term) === termKey) || null;
+}
+
+function showQuickDuplicateIfNeeded() {
+    const duplicate = getQuickDuplicate(quickAddSetInput.value, quickAddTermInput.value);
+    if (!duplicate) return false;
+    const setTitle = quickAddSetCache.get(quickAddSetInput.value)?.title || 'bộ thẻ này';
+    setQuickAddStatus(`Từ “${duplicate.term}” đã tồn tại trong “${setTitle}”.`, 'error');
+    return true;
+}
+
+async function loadQuickAddSet(preferredSetId = '') {
+    quickAddSetCache.clear();
+    if (!currentUser) {
+        quickAddSetInput.value = '';
+        return false;
+    }
+    const rememberedSet = localStorage.getItem(`${QUICK_ADD_LAST_SET_KEY}:${currentUser.uid}`) || '';
+    const setId = preferredSetId || rememberedSet;
+    if (!setId) return false;
+    quickAddDestination.querySelector('span').textContent = 'Đang tải bộ thẻ…';
+    try {
+        const snapshot = await getDoc(doc(db, 'study_sets', setId));
+        if (!snapshot.exists() || snapshot.data().ownerId !== currentUser.uid) throw new Error('SET_NOT_FOUND');
+        const setData = { id: snapshot.id, ...snapshot.data() };
+        quickAddSetCache.set(setId, setData);
+        quickAddSetInput.value = setId;
+        const count = normalizeVocabularyWords(setData.words).length;
+        const reviewNote = setData.isPublic || setData.publicationStatus === 'approved' ? ' · sẽ gửi duyệt lại' : '';
+        quickAddDestination.querySelector('span').textContent = `${setData.title || 'Chưa đặt tên'} · ${count} từ${reviewNote}`;
+        setQuickAddStatus('Nhập thuật ngữ để tự động tra nghĩa.', '');
+        return true;
+    } catch (error) {
+        console.error('Không thể tải bộ thẻ để thêm nhanh:', error);
+        quickAddSetInput.value = '';
+        setQuickAddStatus('Không thể tải bộ thẻ này. Vui lòng thử lại.', 'error');
+        return false;
+    }
+}
+
+const quickSenseTranslationCache = new Map();
+const emptyQuickDetails = () => ({ pronunciation: '', type: '', example: '', synonyms: '' });
+const quickDetailCount = (details) => Object.values(details).filter(Boolean).length;
+const waitForQuickLookupRetry = () => new Promise((resolve) => window.setTimeout(resolve, 400));
+
+function quickDictionaryDetails(entries) {
+    const entry = entries?.[0] || {};
+    const meaning = entry.meanings?.find((item) => item.definitions?.some((definition) => definition.example) || item.synonyms?.length) || entry.meanings?.[0] || {};
+    const definition = meaning.definitions?.find((item) => item.example) || meaning.definitions?.[0] || {};
+    return {
+        pronunciation: entry.phonetic || entry.phonetics?.find((item) => item.text)?.text || '',
+        type: meaning.partOfSpeech || '',
+        example: definition.example || '',
+        synonyms: [...new Set([...(meaning.synonyms || []), ...(definition.synonyms || [])])].slice(0, 3).join(', ')
+    };
+}
+
+function quickDictionaryDetailsByPart(entries) {
+    const detailsByPart = {};
+    (entries || []).forEach((entry) => {
+        const pronunciation = entry.phonetic || entry.phonetics?.find((item) => item.text)?.text || '';
+        (entry.meanings || []).forEach((meaning) => {
+            const key = textValue(meaning.partOfSpeech).toLowerCase();
+            if (!key) return;
+            const definition = meaning.definitions?.find((item) => item.example) || meaning.definitions?.[0] || {};
+            const candidate = {
+                pronunciation,
+                type: meaning.partOfSpeech || '',
+                example: definition.example || '',
+                synonyms: [...new Set([...(meaning.synonyms || []), ...(definition.synonyms || [])])].slice(0, 3).join(', ')
+            };
+            if (!detailsByPart[key] || quickDetailCount(candidate) > quickDetailCount(detailsByPart[key])) detailsByPart[key] = candidate;
+        });
+    });
+    return detailsByPart;
+}
+
+function quickDictionarySenses(entries) {
+    return (entries || []).flatMap((entry) => {
+        const pronunciation = entry.phonetic || entry.phonetics?.find((item) => item.text)?.text || '';
+        return (entry.meanings || []).flatMap((meaning) => (meaning.definitions || []).map((definition) => ({
+            pronunciation,
+            type: textValue(meaning.partOfSpeech),
+            sourceDefinition: textValue(definition.definition),
+            example: textValue(definition.example),
+            synonyms: [...new Set([...(meaning.synonyms || []), ...(definition.synonyms || [])])].slice(0, 3).join(', ')
+        }))).filter((sense) => sense.sourceDefinition);
+    });
+}
+
+function quickTranslationSuggestions(translationData, fallback = '') {
+    const suggestions = [];
+    const partLabels = { verb: 'v', noun: 'n', adjective: 'adj', adverb: 'adv', pronoun: 'pron', preposition: 'prep', conjunction: 'conj', interjection: 'interj' };
+    (Array.isArray(translationData?.[1]) ? translationData[1] : []).forEach((group) => {
+        const partOfSpeech = textValue(group?.[0]);
+        const shortPart = partLabels[partOfSpeech.toLowerCase()] || partOfSpeech;
+        (Array.isArray(group?.[1]) ? group[1] : []).forEach((candidate) => {
+            const value = textValue(Array.isArray(candidate) ? candidate[0] : candidate);
+            if (value) suggestions.push({ value, label: shortPart ? `${value} · ${shortPart}` : value, partOfSpeech });
+        });
+    });
+    if (fallback) suggestions.unshift({ value: fallback, label: fallback, partOfSpeech: '' });
+    return suggestions;
+}
+
+async function fetchQuickDictionary(word, signal, maxAttempts = 4) {
+    let bestEntries = [];
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+            const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { signal });
+            if (response.status === 404) return { entries: [], notFound: true };
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const entries = await response.json();
+            if (quickDetailCount(quickDictionaryDetails(entries)) > quickDetailCount(quickDictionaryDetails(bestEntries))) bestEntries = entries;
+            if (quickDetailCount(quickDictionaryDetails(bestEntries)) >= 2) break;
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+        }
+        if (attempt < maxAttempts - 1) await waitForQuickLookupRetry();
+    }
+    return { entries: bestEntries, notFound: false };
+}
+
+async function fetchQuickTranslation(word, signal, maxAttempts = 2) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+            const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&dt=bd&q=${encodeURIComponent(word)}`, { signal });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            const definition = data?.[0]?.map((part) => part?.[0]).filter(Boolean).join('') || '';
+            if (definition) return { definition, suggestions: quickTranslationSuggestions(data, definition) };
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+        }
+        if (attempt < maxAttempts - 1) await waitForQuickLookupRetry();
+    }
+    return { definition: '', suggestions: [] };
+}
+
+function normalizeQuickMeaning(value) {
+    return textValue(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('vi').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
+async function translateQuickSenses(word, senses) {
+    const cacheKey = `${quickTermKey(word)}|${senses.map((sense) => `${sense.type}:${sense.sourceDefinition}`).join('\u001f')}`;
+    if (quickSenseTranslationCache.has(cacheKey)) return quickSenseTranslationCache.get(cacheKey);
+    const task = (async () => {
+        const requestText = senses.map((sense, index) => `${sense.sourceDefinition}\n@@SENSE_${index}@@`).join('\n');
+        const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(requestText)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const translated = Array(senses.length).fill('');
+        let currentIndex = 0;
+        (data?.[0] || []).forEach((part) => {
+            const source = textValue(part?.[1]);
+            const marker = source.match(/@@SENSE_(\d+)@@/);
+            if (marker) currentIndex = Number(marker[1]) + 1;
+            else if (currentIndex < translated.length) translated[currentIndex] += textValue(part?.[0]);
+        });
+        return senses.map((sense, index) => ({ ...sense, translatedDefinition: translated[index] }));
+    })();
+    quickSenseTranslationCache.set(cacheKey, task);
+    try { return await task; }
+    catch (error) { quickSenseTranslationCache.delete(cacheKey); throw error; }
+}
+
+async function findQuickDetailsForMeaning(word, selectedMeaning, partOfSpeech, senses) {
+    const candidates = senses.filter((sense) => !partOfSpeech || sense.type.toLowerCase() === partOfSpeech.toLowerCase());
+    if (!candidates.length) return null;
+    if (candidates.length === 1) return candidates[0];
+    const selectedText = normalizeQuickMeaning(selectedMeaning);
+    const selectedTokens = selectedText.split(' ').filter((token) => token.length > 1);
+    const translatedSenses = await translateQuickSenses(word, candidates);
+    const ranked = translatedSenses.map((sense) => {
+        const translatedText = normalizeQuickMeaning(sense.translatedDefinition);
+        return { sense, score: (selectedText && translatedText.includes(selectedText) ? 20 : 0) + selectedTokens.filter((token) => translatedText.includes(token)).length };
+    }).sort((left, right) => right.score - left.score);
+    return ranked[0]?.score > 0 ? ranked[0].sense : null;
+}
+
+function replaceQuickValue(input, value, word) {
+    input.value = value || '';
+    if (value) input.dataset.autoFilledFor = word;
+    else delete input.dataset.autoFilledFor;
+}
+
+function renderQuickMeaningSuggestions(suggestions, word, detailsByPart, fallbackDetails, senses, activeDefinition) {
+    const unique = [];
+    const seen = new Set();
+    suggestions.forEach((suggestion) => {
+        const value = textValue(suggestion.value || suggestion).replace(/\s+/g, ' ').normalize('NFC');
+        const key = value.toLocaleLowerCase('vi');
+        if (!value || seen.has(key)) return;
+        seen.add(key);
+        unique.push({ value, label: textValue(suggestion.label) || value, partOfSpeech: textValue(suggestion.partOfSpeech).toLowerCase() });
+    });
+    quickAddSuggestions.replaceChildren();
+    if (unique.length < 2) {
+        quickAddSuggestions.hidden = true;
+        return;
+    }
+    const title = document.createElement('span');
+    title.className = 'quick-add-suggestions-title';
+    title.innerHTML = '<i class="fa-solid fa-list-check"></i> Chọn nghĩa phù hợp';
+    const choices = document.createElement('div');
+    choices.className = 'quick-add-suggestion-options';
+    unique.slice(0, 6).forEach(({ value, label, partOfSpeech }) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'quick-add-suggestion-option';
+        button.textContent = label;
+        button.classList.toggle('is-selected', quickTermKey(value) === quickTermKey(activeDefinition));
+        button.addEventListener('click', async () => {
+            replaceQuickValue(quickAddDefinitionInput, value, word);
+            choices.querySelectorAll('button').forEach((option) => option.classList.toggle('is-selected', option === button));
+            ['pronunciation', 'type', 'example', 'synonyms'].forEach((key) => replaceQuickValue(quickAddFields[key], '', word));
+            setQuickAddStatus(`Đang cập nhật thông tin cho nghĩa “${value}”…`, 'loading');
+            try {
+                const matched = await findQuickDetailsForMeaning(word, value, partOfSpeech, senses);
+                if (quickAddTermInput.value.trim() !== word || quickAddDefinitionInput.value !== value) return;
+                const selected = matched || detailsByPart[partOfSpeech] || fallbackDetails;
+                ['pronunciation', 'type', 'example', 'synonyms'].forEach((key) => replaceQuickValue(quickAddFields[key], selected?.[key], word));
+                setQuickAddStatus(matched
+                    ? `Đã chọn nghĩa “${value}” và cập nhật thông tin liên quan.`
+                    : `Đã chọn nghĩa “${value}”. Một số thông tin riêng cho nghĩa này chưa có.`, matched ? 'success' : 'error');
+            } catch (error) {
+                console.warn('Không thể ghép dữ liệu theo nghĩa đã chọn:', error);
+                setQuickAddStatus(`Đã chọn nghĩa “${value}”, nhưng chưa thể cập nhật dữ liệu liên quan.`, 'error');
+            }
+        });
+        choices.appendChild(button);
+    });
+    quickAddSuggestions.append(title, choices);
+    quickAddSuggestions.hidden = false;
+}
+
+async function lookupQuickWord() {
+    const word = quickAddTermInput.value.trim();
+    if (!word || showQuickDuplicateIfNeeded()) return;
+    if (quickAddLookupInFlightWord === word || quickAddLastLookupWord === word) return;
+    quickAddLookupController?.abort();
+    const controller = new AbortController();
+    quickAddLookupController = controller;
+    quickAddLookupInFlightWord = word;
+    clearQuickAutoValues(word);
+    quickAddSuggestions.hidden = true;
+    setQuickAddStatus('Đang tìm nhiều nghĩa và thông tin từ…', 'loading');
+
+    try {
+        const [dictionaryLookup, translationLookup] = await Promise.all([
+            fetchQuickDictionary(word, controller.signal),
+            fetchQuickTranslation(word, controller.signal)
+        ]);
+        if (controller.signal.aborted || quickAddTermInput.value.trim() !== word) return;
+        const details = quickDictionaryDetails(dictionaryLookup.entries);
+        const detailsByPart = quickDictionaryDetailsByPart(dictionaryLookup.entries);
+        const senses = quickDictionarySenses(dictionaryLookup.entries);
+        const values = { definition: translationLookup.definition, ...details };
+        Object.entries(values).forEach(([key, value]) => setQuickAutoValue(quickAddFields[key], value, word));
+        renderQuickMeaningSuggestions(translationLookup.suggestions, word, detailsByPart, details, senses, translationLookup.definition);
+        quickAddLastLookupWord = word;
+        const foundCount = Object.values(values).filter(Boolean).length;
+        if (translationLookup.suggestions.length > 1) {
+            setQuickAddStatus(`Tìm thấy ${translationLookup.suggestions.length} nghĩa. Hãy chọn nghĩa phù hợp bên dưới.`, 'success');
+        } else if (foundCount) {
+            setQuickAddStatus(`Đã tự động điền ${foundCount}/5 mục. Bạn có thể chỉnh sửa trước khi lưu.`, 'success');
+        } else if (dictionaryLookup.notFound) {
+            setQuickAddStatus('Không nhận diện được từ. Hãy kiểm tra chính tả hoặc nhập thủ công.', 'error');
+        } else setQuickAddStatus('Không tìm thấy dữ liệu. Bạn vẫn có thể nhập thủ công.', 'error');
+    } catch (error) {
+        if (error.name === 'AbortError') return;
+        console.warn('Không thể tra từ nhanh:', error);
+        setQuickAddStatus('Không thể tra từ lúc này. Bạn vẫn có thể nhập thủ công.', 'error');
+    } finally {
+        if (quickAddLookupInFlightWord === word) quickAddLookupInFlightWord = '';
+    }
+}
+
+async function openQuickAdd(preferredSetId = '') {
+    if (!currentUser) {
+        showError('Hãy đăng nhập để thêm từ vào thư viện cá nhân.');
+        await startGoogleSignIn();
+        if (!auth.currentUser) return;
+        currentUser = auth.currentUser;
+    }
+    const targetSetId = preferredSetId || localStorage.getItem(`${QUICK_ADD_LAST_SET_KEY}:${currentUser.uid}`) || '';
+    if (!targetSetId) return showError('Hãy bấm “Thêm từ” trên bộ thẻ bạn muốn bổ sung.');
+    document.querySelectorAll('.modal-overlay').forEach((modal) => { modal.style.display = 'none'; });
+    quickAddModal.style.display = 'flex';
+    const loaded = await loadQuickAddSet(targetSetId);
+    if (!loaded) return;
+    window.setTimeout(() => quickAddTermInput.focus(), 0);
+}
+
+function closeQuickAdd() {
+    quickAddLookupController?.abort();
+    quickAddModal.style.display = 'none';
+}
+
+document.getElementById('btn-close-quick-add').addEventListener('click', closeQuickAdd);
+quickAddModal.addEventListener('click', (event) => { if (event.target === quickAddModal) closeQuickAdd(); });
+
+quickAddTermInput.addEventListener('input', () => {
+    clearTimeout(quickAddLookupTimer);
+    quickAddLookupController?.abort();
+    clearQuickAutoValues(quickAddTermInput.value.trim());
+    quickAddLastLookupWord = '';
+    quickAddSuggestions.replaceChildren();
+    quickAddSuggestions.hidden = true;
+    if (!quickAddTermInput.value.trim()) return setQuickAddStatus('Nhập thuật ngữ để tự động tra nghĩa.', '');
+    if (showQuickDuplicateIfNeeded()) return;
+    setQuickAddStatus('Sẽ tự động tra sau khi bạn dừng nhập…', '');
+    quickAddLookupTimer = window.setTimeout(lookupQuickWord, 450);
+});
+quickAddTermInput.addEventListener('blur', () => {
+    clearTimeout(quickAddLookupTimer);
+    if (quickAddTermInput.value.trim() && !showQuickDuplicateIfNeeded()) lookupQuickWord();
+});
+Object.values(quickAddFields).forEach((input) => input?.addEventListener('input', () => delete input.dataset.autoFilledFor));
+
+quickAddForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const setId = quickAddSetInput.value;
+    const word = normalizeVocabularyWord({
+        term: quickAddTermInput.value,
+        definition: quickAddDefinitionInput.value,
+        pronunciation: quickAddFields.pronunciation.value,
+        type: quickAddFields.type.value,
+        example: quickAddFields.example.value,
+        synonyms: quickAddFields.synonyms.value
+    });
+    if (!currentUser) return showError('Hãy đăng nhập để thêm từ.');
+    if (!setId) return setQuickAddStatus('Hãy chọn một bộ thẻ.', 'error');
+    if (!word) return setQuickAddStatus('Thuật ngữ và định nghĩa là hai mục bắt buộc.', 'error');
+    if (showQuickDuplicateIfNeeded()) return quickAddTermInput.focus();
+
+    const saveButton = document.getElementById('btn-save-quick-add');
+    saveButton.disabled = true;
+    saveButton.innerHTML = brandButtonLoading('Đang thêm…');
+    try {
+        const setRef = doc(db, 'study_sets', setId);
+        const updatedSet = await runTransaction(db, async (transaction) => {
+            const snapshot = await transaction.get(setRef);
+            if (!snapshot.exists()) throw new Error('SET_NOT_FOUND');
+            const setData = snapshot.data();
+            if (setData.ownerId !== currentUser.uid) throw new Error('NOT_OWNER');
+            const words = normalizeVocabularyWords(setData.words);
+            if (words.some((existingWord) => quickTermKey(existingWord.term) === quickTermKey(word.term))) {
+                throw new Error('DUPLICATE_WORD');
+            }
+            const needsReview = setData.isPublic === true || ['approved', 'pending'].includes(setData.publicationStatus);
+            // Luôn chuẩn hóa hai trường xuất bản để cả các bộ thẻ cũ cũng thỏa Firestore Rules hiện tại.
+            const updateData = {
+                words: [...words, word],
+                isPublic: false,
+                publicationStatus: needsReview ? 'pending' : 'private'
+            };
+            transaction.update(setRef, updateData);
+            return { ...setData, ...updateData };
+        });
+        quickAddSetCache.set(setId, { id: setId, ...updatedSet });
+        localStorage.setItem(`${QUICK_ADD_LAST_SET_KEY}:${currentUser.uid}`, setId);
+        closeQuickAdd();
+        quickAddForm.reset();
+        quickAddLastLookupWord = '';
+        quickAddSuggestions.replaceChildren();
+        quickAddSuggestions.hidden = true;
+        Object.values(quickAddFields).forEach((input) => delete input.dataset.autoFilledFor);
+        showSuccess(`Đã thêm “${word.term}” vào “${updatedSet.title || 'bộ thẻ'}”.`);
+        if (currentPage === 'home') loadSets('home-personal');
+        if (currentPage === 'created') loadSets('created');
+    } catch (error) {
+        if (error.message === 'DUPLICATE_WORD') {
+            setQuickAddStatus(`Từ “${word.term}” đã tồn tại trong bộ thẻ này.`, 'error');
+            quickAddTermInput.focus();
+        } else if (error.message === 'SET_NOT_FOUND') setQuickAddStatus('Bộ thẻ này không còn tồn tại.', 'error');
+        else if (error.message === 'NOT_OWNER') setQuickAddStatus('Bạn không có quyền sửa bộ thẻ này.', 'error');
+        else {
+            console.error('Không thể thêm từ nhanh:', error);
+            handleFirebaseError(error);
+        }
+    } finally {
+        saveButton.disabled = false;
+        saveButton.innerHTML = '<i class="fa-solid fa-plus"></i> Thêm vào bộ thẻ';
+    }
+});
+
+document.addEventListener('keydown', (event) => {
+    const target = event.target;
+    const isTyping = target instanceof HTMLElement && (target.matches('input, textarea, select') || target.isContentEditable);
+    const isQuickShortcut = (event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase('en') === 'k';
+    const isNShortcut = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && event.key.toLocaleLowerCase('en') === 'n' && !isTyping;
+    if (!isQuickShortcut && !isNShortcut) return;
+    event.preventDefault();
+    if (quickAddModal.style.display === 'flex') quickAddTermInput.focus();
+    else openQuickAdd();
+});
+
 // ============ MỤC TIÊU VÀ NHỊP HỌC HẰNG NGÀY ============
 function getLocalDayKey(date = new Date()) {
     const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -966,6 +1460,7 @@ onAuthStateChanged(auth, (user) => {
         if (currentPage === 'home' || currentPage === 'created') {
             loadSets(currentPage); 
         }
+        if (currentPage === 'home') loadSets('home-personal');
         // TÍNH NĂNG MỚI BỔ SUNG: Cập nhật biến đếm từ ở trang chủ
         if (currentPage === 'home') {
             updateTodayWordsDisplay(user.uid);
@@ -984,7 +1479,10 @@ onAuthStateChanged(auth, (user) => {
         document.getElementById('account-profile-name').textContent = 'Khách';
         document.getElementById('account-profile-email').textContent = 'Đăng nhập để đồng bộ dữ liệu';
         document.getElementById('account-profile-avatar').innerHTML = '<i class="fa-solid fa-user"></i>';
-        if (currentPage === 'home') loadSets('home');
+        if (currentPage === 'home') {
+            loadSets('home');
+            loadSets('home-personal');
+        }
         else if (currentPage === 'created') loadSets('created');
     }
 });
@@ -1075,10 +1573,17 @@ if (currentPage === 'home') {
 
 // 2. TẢI VÀ VẼ LƯỚI
 async function loadSets(pageType) {
-    if (!grid) return;
-    if (pageType === 'created' && !currentUser) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-lock"></i><h3>Bộ thẻ của bạn đang chờ</h3><p>Đăng nhập để xem, chỉnh sửa và quản lý các bộ thẻ riêng.</p><button id="btn-sign-in-created" class="btn btn-black" type="button"><i class="fa-brands fa-google"></i> Đăng nhập</button></div>';
-        document.getElementById('btn-sign-in-created')?.addEventListener('click', () => startGoogleSignIn());
+    const targetGrid = pageType === 'home-personal' ? personalGrid : grid;
+    if (!targetGrid) return;
+    if ((pageType === 'created' || pageType === 'home-personal') && !currentUser) {
+        if (pageType === 'home-personal') {
+            personalLibrarySection.hidden = true;
+            targetGrid.replaceChildren();
+            return;
+        }
+        const buttonId = pageType === 'created' ? 'btn-sign-in-created' : 'btn-sign-in-home-personal';
+        targetGrid.innerHTML = `<div class="empty-state personal-library-empty" style="grid-column: 1 / -1;"><i class="fa-solid fa-lock"></i><h3>Đăng nhập để xem thư viện của bạn</h3><p>Các bộ thẻ cá nhân sẽ xuất hiện ngay tại đây.</p><button id="${buttonId}" class="btn btn-black" type="button"><i class="fa-brands fa-google"></i> Đăng nhập</button></div>`;
+        document.getElementById(buttonId)?.addEventListener('click', () => startGoogleSignIn());
         return;
     }
 
@@ -1086,13 +1591,13 @@ async function loadSets(pageType) {
     const closeNewUserWelcome = () => { if (newUserWelcomeModal) newUserWelcomeModal.style.display = 'none'; };
     document.getElementById('btn-close-new-user-welcome')?.addEventListener('click', closeNewUserWelcome);
     document.getElementById('btn-welcome-browse')?.addEventListener('click', closeNewUserWelcome);
-    grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">${brandLoadingMarkup('Đang tải bộ thẻ...')}</div>`;
+    targetGrid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">${brandLoadingMarkup('Đang tải bộ thẻ...')}</div>`;
 
     try {
         let q;
         if (pageType === 'home') {
             q = query(collection(db, "study_sets"), where("isPublic", "==", true));
-        } else if (pageType === 'created') {
+        } else if (pageType === 'created' || pageType === 'home-personal') {
             q = query(collection(db, "study_sets"), where("ownerId", "==", currentUser.uid));
         }
 
@@ -1104,9 +1609,14 @@ async function loadSets(pageType) {
             const progress = progressDoc.data();
             if (progress.setId) progressBySetId.set(progress.setId, progress.learnedCards || {});
         });
-        grid.innerHTML = '';
+        const visibleSetDocs = pageType === 'home-personal'
+            ? querySnapshot.docs.filter((setDoc) => setDoc.data().isPinnedHome === true)
+            : querySnapshot.docs;
+        if (pageType === 'home-personal') personalLibrarySection.hidden = visibleSetDocs.length === 0;
+        targetGrid.innerHTML = '';
 
-        if (querySnapshot.empty) {
+        if (!visibleSetDocs.length) {
+            if (pageType === 'home-personal') return;
             const emptyHTML = `
                 <div class="empty-state" style="grid-column: 1 / -1;">
                     <i class="fa-regular fa-folder-open"></i>
@@ -1117,11 +1627,11 @@ async function loadSets(pageType) {
                     </a>
                 </div>
             `;
-            grid.innerHTML = emptyHTML;
+            targetGrid.innerHTML = emptyHTML;
             return;
         }
 
-        querySnapshot.forEach((docSnap) => {
+        visibleSetDocs.forEach((docSnap) => {
             const data = docSnap.data();
             const isMine = Boolean(currentUser && data.ownerId === currentUser.uid);
             const totalWords = Array.isArray(data.words) ? data.words.length : 0;
@@ -1154,6 +1664,17 @@ async function loadSets(pageType) {
             const moderationNote = isMine && publicationStatus === 'rejected' && data.adminNote
                 ? `<p class="set-moderation-note"><i class="fa-solid fa-circle-info"></i> ${escapeHTML(data.adminNote)}</p>`
                 : '';
+            const canQuickAdd = isMine && (pageType === 'created' || pageType === 'home-personal');
+            const cardActions = canQuickAdd
+                ? `<div class="set-card-actions"><button class="set-card-action set-card-study-button" type="button">Bắt đầu học <i class="fa-solid fa-arrow-right"></i></button><button class="set-card-quick-add" type="button" aria-label="Thêm từ vào ${escapeHTML(data.title || 'bộ thẻ này')}"><i class="fa-solid fa-plus"></i><span>Thêm từ</span></button></div>`
+                : '<span class="set-card-action">Bắt đầu học <i class="fa-solid fa-arrow-right"></i></span>';
+
+            if (canQuickAdd) {
+                card.classList.add('has-dedicated-actions');
+                card.setAttribute('role', 'group');
+                card.removeAttribute('tabindex');
+                card.setAttribute('aria-label', `Bộ thẻ ${data.title}`);
+            }
 
             card.innerHTML = `
                 <h4 class="set-title">${escapeHTML(data.title)}</h4>
@@ -1169,27 +1690,75 @@ async function loadSets(pageType) {
                     <span class="word-count">${statusIcon}</span>
                     <span class="author-tag"><i class="fa-regular fa-user"></i> ${escapeHTML(data.authorName || 'Ẩn danh')} ${isMine ? '(Bạn)' : ''}</span>
                 </div>
-                <span class="set-card-action">Bắt đầu học <i class="fa-solid fa-arrow-right"></i></span>
+                ${cardActions}
             `;
 
-            // Cả thẻ là một hành động rõ ràng: chạm/click hoặc Enter/Space để mở bài học.
+            card.querySelector('.set-card-quick-add')?.addEventListener('click', (event) => {
+                event.stopPropagation();
+                openQuickAdd(docSnap.id);
+            });
+            card.querySelector('.set-card-quick-add')?.addEventListener('keydown', (event) => event.stopPropagation());
+
             const openStudySet = () => {
                 navigateTo(`/study/?id=${docSnap.id}`, 'Đang mở bộ thẻ');
             };
-            card.addEventListener('click', openStudySet);
-            card.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openStudySet();
-                }
+            card.querySelector('.set-card-study-button')?.addEventListener('click', (event) => {
+                event.stopPropagation();
+                openStudySet();
             });
+            if (!canQuickAdd) {
+                // Thẻ cộng đồng chỉ có một hành động nên toàn bộ bề mặt có thể mở bài học.
+                card.addEventListener('click', openStudySet);
+                card.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openStudySet();
+                    }
+                });
+            }
 
             if (isMine && pageType === 'created') {
+                card.classList.add('has-card-management');
+                card.style.position = 'relative';
+                const managementActions = document.createElement('div');
+                managementActions.className = 'set-card-management';
+                const pinBtn = document.createElement('button');
+                const renderPinState = () => {
+                    const isPinned = data.isPinnedHome === true;
+                    pinBtn.className = `set-card-manage-btn set-card-pin${isPinned ? ' is-pinned' : ''}`;
+                    pinBtn.innerHTML = '<i class="fa-solid fa-thumbtack"></i>';
+                    pinBtn.title = isPinned ? 'Bỏ ghim khỏi trang chủ' : 'Ghim ra trang chủ';
+                    pinBtn.setAttribute('aria-label', pinBtn.title);
+                    pinBtn.setAttribute('aria-pressed', String(isPinned));
+                };
+                pinBtn.type = 'button';
+                renderPinState();
+                pinBtn.addEventListener('click', async (event) => {
+                    event.stopPropagation();
+                    const nextPinned = data.isPinnedHome !== true;
+                    pinBtn.disabled = true;
+                    try {
+                        await updateDoc(doc(db, 'study_sets', docSnap.id), { isPinnedHome: nextPinned });
+                        data.isPinnedHome = nextPinned;
+                        renderPinState();
+                        showToast(nextPinned ? `Đã ghim “${data.title}” ra trang chủ.` : `Đã bỏ ghim “${data.title}” khỏi trang chủ.`, 'success');
+                    } catch (error) {
+                        console.error('Không thể cập nhật ghim:', error);
+                        handleFirebaseError(error);
+                    } finally {
+                        pinBtn.disabled = false;
+                    }
+                });
+
                 const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'set-card-manage-btn set-card-delete';
                 deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
-                deleteBtn.style = "position: absolute; right: 15px; top: 15px; background: none; border: none; color: #ff5252; cursor: pointer;";
-                card.style.position = 'relative'; 
-                card.appendChild(deleteBtn);
+                deleteBtn.title = 'Xóa bộ thẻ';
+                deleteBtn.setAttribute('aria-label', 'Xóa bộ thẻ');
+                managementActions.append(pinBtn, deleteBtn);
+                managementActions.addEventListener('keydown', (event) => event.stopPropagation());
+                card.appendChild(managementActions);
 
                 deleteBtn.addEventListener('click', async (e) => {
                     e.stopPropagation(); 
@@ -1199,12 +1768,13 @@ async function loadSets(pageType) {
                     }
                 });
             }
-            grid.appendChild(card);
+            targetGrid.appendChild(card);
         });
-        applySetSearch();
+        if (targetGrid === grid) applySetSearch();
     } catch (error) {
         console.error("Lỗi:", error);
-        grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-triangle-exclamation"></i><h3>Chưa thể tải bộ thẻ</h3><p>Vui lòng kiểm tra kết nối và thử lại.</p></div>';
+        if (pageType === 'home-personal' && personalLibrarySection) personalLibrarySection.hidden = true;
+        targetGrid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;"><i class="fa-solid fa-triangle-exclamation"></i><h3>Chưa thể tải bộ thẻ</h3><p>Vui lòng kiểm tra kết nối và thử lại.</p></div>';
     }
 }
 // 3. VẼ BIỂU ĐỒ DỰ BÁO 7 NGÀY (Ở TRANG CHỦ)

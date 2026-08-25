@@ -341,6 +341,16 @@
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 @media (max-width: 640px) {
+    .quick-add-modal { align-items: flex-end; padding: 10px; }
+    .quick-add-modal-content { width: 100%; max-height: calc(100dvh - 20px); padding: 20px 16px calc(18px + env(safe-area-inset-bottom)); border-radius: 22px; }
+    .quick-add-grid { grid-template-columns: 1fr; gap: 11px; margin-top: 11px; }
+    .quick-add-field-wide { grid-column: auto; }
+    .quick-add-footer { align-items: stretch; flex-direction: column-reverse; gap: 9px; }
+    .quick-add-footer .btn { width: 100%; }
+    .quick-add-shortcut { display: none; }
+    .personal-library-heading { align-items: flex-end; flex-direction: row !important; margin-top: 27px; }
+    .personal-library-heading .section-link { font-size: 11px; }
+
     body[data-page="home"] #main-container {
         padding-right: 14px;
         padding-bottom: calc(112px + env(safe-area-inset-bottom));
@@ -406,6 +416,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body[data-page="home"] .set-footer { align-items: flex-start; flex-wrap: wrap; gap: 6px 12px; padding-top: 10px; }
     body[data-page="home"] .author-tag { max-width: 100%; }
     body[data-page="home"] .set-card-action { min-height: 42px; margin-top: 11px; padding: 10px 12px; font-size: 13px; }
+    body[data-page="home"] .set-card-actions { grid-template-columns: minmax(0, 1fr) auto; gap: 7px; margin-top: 11px; }
+    body[data-page="home"] .set-card-actions .set-card-action { margin-top: 0; }
+    body[data-page="home"] .set-card-quick-add { min-width: 96px; padding: 0 10px; }
 
     /* Chế độ học: tiêu đề, thẻ và các nút luôn nằm trong một nhịp đọc rõ ràng. */
     body[data-page="study"] .top-nav {

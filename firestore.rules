@@ -33,6 +33,15 @@ service cloud.firestore {
         ]);
     }
 
+    function isSafeHomePinUpdate() {
+      return ownsExistingSet()
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.isPinnedHome is bool
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'isPinnedHome'
+        ]);
+    }
+
     match /study_sets/{setId} {
       // Chỉ bộ thẻ đã được admin duyệt (isPublic) mới hiện với cộng đồng.
       // Chủ sở hữu và admin vẫn xem được các bộ thẻ đang chờ duyệt.
@@ -42,6 +51,7 @@ service cloud.firestore {
       allow create: if signedIn() && isUserSubmission();
       // User không thể tự đặt isPublic = true hoặc publicationStatus = approved.
       allow update: if isSafeUserUpdate()
+        || isSafeHomePinUpdate()
         || (isAdmin() && request.resource.data.ownerId == resource.data.ownerId);
       allow delete: if ownsExistingSet() || isAdmin();
     }
