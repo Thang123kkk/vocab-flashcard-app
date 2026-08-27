@@ -843,8 +843,12 @@ async function fetchSynonymSuggestions(word, partOfSpeech, signal) {
         );
         if (!response.ok) throw new Error(`Datamuse HTTP ${response.status}`);
         const wantedTag = synonymPartOfSpeechTag(partOfSpeech);
-        const suggestions = (await response.json())
-            .filter((item) => !wantedTag || item?.tags?.includes(wantedTag))
+        const candidates = await response.json();
+        const matchingPartOfSpeech = wantedTag
+            ? candidates.filter((item) => item?.tags?.includes(wantedTag))
+            : candidates;
+        // Một số từ (như “hi”) không được API gắn thẻ interjection; giữ gợi ý thay vì bỏ trống ô.
+        const suggestions = (matchingPartOfSpeech.length ? matchingPartOfSpeech : candidates)
             .map((item) => textValue(item?.word))
             .filter((item) => item && item.toLocaleLowerCase('en') !== normalizedWord)
             .filter((item, index, items) => items.indexOf(item) === index)
