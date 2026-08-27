@@ -710,8 +710,10 @@ const VOCAB_LOOKUP_TIMEOUT_MS = 3500;
 const TRANSLATION_LOOKUP_TIMEOUT_MS = 2500;
 const DICTIONARY_LOOKUP_TIMEOUT_MS = 2000;
 const WIKTIONARY_LOOKUP_TIMEOUT_MS = 2500;
+const SYNONYM_LOOKUP_TIMEOUT_MS = 1800;
 const vietnameseTranslationCache = new Map();
 const wiktionaryDictionaryCache = new Map();
+const synonymSuggestionCache = new Map();
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = VOCAB_LOOKUP_TIMEOUT_MS) {
     const timeoutController = new AbortController();
@@ -816,6 +818,42 @@ async function fetchWiktionaryDictionaryEntries(word, signal) {
     } catch (error) {
         if (error.name === 'AbortError') throw error;
         console.warn('Nguồn từ điển dự phòng không phản hồi:', error);
+        return [];
+    }
+}
+
+function synonymPartOfSpeechTag(partOfSpeech) {
+    const tags = {
+        noun: 'n', verb: 'v', adjective: 'adj', adverb: 'adv',
+        pronoun: 'pron', preposition: 'prep', conjunction: 'conj', interjection: 'intj'
+    };
+    return tags[textValue(partOfSpeech).toLocaleLowerCase('en')] || '';
+}
+
+async function fetchSynonymSuggestions(word, partOfSpeech, signal) {
+    const normalizedWord = textValue(word).toLocaleLowerCase('en');
+    const cacheKey = `${normalizedWord}|${textValue(partOfSpeech).toLocaleLowerCase('en')}`;
+    if (synonymSuggestionCache.has(cacheKey)) return synonymSuggestionCache.get(cacheKey);
+
+    try {
+        const response = await fetchWithTimeout(
+            `https://api.datamuse.com/words?rel_syn=${encodeURIComponent(word)}&md=p&max=10`,
+            { signal },
+            SYNONYM_LOOKUP_TIMEOUT_MS
+        );
+        if (!response.ok) throw new Error(`Datamuse HTTP ${response.status}`);
+        const wantedTag = synonymPartOfSpeechTag(partOfSpeech);
+        const suggestions = (await response.json())
+            .filter((item) => !wantedTag || item?.tags?.includes(wantedTag))
+            .map((item) => textValue(item?.word))
+            .filter((item) => item && item.toLocaleLowerCase('en') !== normalizedWord)
+            .filter((item, index, items) => items.indexOf(item) === index)
+            .slice(0, 3);
+        synonymSuggestionCache.set(cacheKey, suggestions);
+        return suggestions;
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        console.warn('Nguồn gợi ý từ đồng nghĩa không phản hồi:', error);
         return [];
     }
 }
@@ -1236,7 +1274,12 @@ async function lookupQuickWord() {
             fetchQuickTranslation(word, controller.signal)
         ]);
         if (controller.signal.aborted || quickAddTermInput.value.trim() !== word) return;
-        const details = quickDictionaryDetails(dictionaryLookup.entries);
+        let details = quickDictionaryDetails(dictionaryLookup.entries);
+        if (!details.synonyms) {
+            const suggestions = await fetchSynonymSuggestions(word, details.type, controller.signal);
+            details = { ...details, synonyms: suggestions.join(', ') };
+        }
+        if (controller.signal.aborted || quickAddTermInput.value.trim() !== word) return;
         const detailsByPart = quickDictionaryDetailsByPart(dictionaryLookup.entries);
         const senses = quickDictionarySenses(dictionaryLookup.entries);
         const values = { definition: translationLookup.definition, ...details };
@@ -2730,6 +2773,12 @@ if (currentPage === 'create') {
         }
 
         // Không để một yêu cầu cũ (ví dụ “hello”) ghi đè dữ liệu của từ vừa sửa (“father”).
+        if (controller.signal.aborted || termInput.value.trim() !== word) return;
+
+        if (!details.synonyms) {
+            const suggestions = await fetchSynonymSuggestions(word, details.partOfSpeech, controller.signal);
+            details = { ...details, synonyms: suggestions.join(', ') };
+        }
         if (controller.signal.aborted || termInput.value.trim() !== word) return;
 
         const foundFields = [
