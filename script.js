@@ -711,9 +711,11 @@ const TRANSLATION_LOOKUP_TIMEOUT_MS = 2500;
 const DICTIONARY_LOOKUP_TIMEOUT_MS = 2000;
 const WIKTIONARY_LOOKUP_TIMEOUT_MS = 2500;
 const SYNONYM_LOOKUP_TIMEOUT_MS = 1800;
+const MEANING_SUGGESTION_TIMEOUT_MS = 1000;
 const vietnameseTranslationCache = new Map();
 const wiktionaryDictionaryCache = new Map();
 const synonymSuggestionCache = new Map();
+const meaningSuggestionCache = new Map();
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = VOCAB_LOOKUP_TIMEOUT_MS) {
     const timeoutController = new AbortController();
@@ -862,6 +864,28 @@ async function fetchSynonymSuggestions(word, partOfSpeech, signal) {
     }
 }
 
+async function fetchVietnameseMeaningSuggestions(word, signal) {
+    const cacheKey = textValue(word).toLocaleLowerCase('en');
+    if (meaningSuggestionCache.has(cacheKey)) return meaningSuggestionCache.get(cacheKey);
+
+    try {
+        const response = await fetchWithTimeout(
+            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&dt=bd&q=${encodeURIComponent(word)}`,
+            { signal },
+            MEANING_SUGGESTION_TIMEOUT_MS
+        );
+        if (!response.ok) throw new Error(`Google Translate HTTP ${response.status}`);
+        const data = await response.json();
+        meaningSuggestionCache.set(cacheKey, data);
+        return data;
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        // Đây chỉ là danh sách nút chọn nghĩa; nghĩa chính và thuộc tính vẫn không phụ thuộc vào Google.
+        console.warn('Không thể tải danh sách nhiều nghĩa:', error);
+        return null;
+    }
+}
+
 async function fetchVietnameseTranslation(word, signal) {
     const cacheKey = textValue(word).toLocaleLowerCase('en');
     if (vietnameseTranslationCache.has(cacheKey)) return vietnameseTranslationCache.get(cacheKey);
@@ -886,13 +910,8 @@ async function fetchVietnameseTranslation(word, signal) {
     }
 
     try {
-        const response = await fetchWithTimeout(
-            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&dt=bd&q=${encodeURIComponent(word)}`,
-            { signal },
-            TRANSLATION_LOOKUP_TIMEOUT_MS
-        );
-        if (!response.ok) throw new Error(`Google Translate HTTP ${response.status}`);
-        const googleData = await response.json();
+        const googleData = await fetchVietnameseMeaningSuggestions(word, signal);
+        if (!googleData) return { definition: '', googleData: null };
         const definition = googleData?.[0]?.map((part) => part?.[0]).filter(Boolean).join('') || '';
         if (definition) {
             const result = { definition, googleData };
@@ -1155,10 +1174,11 @@ async function fetchQuickDictionary(word, signal, maxAttempts = 1) {
 
 async function fetchQuickTranslation(word, signal) {
     const result = await fetchVietnameseTranslation(word, signal);
+    const suggestionData = result.googleData || await fetchVietnameseMeaningSuggestions(word, signal);
     return {
         definition: result.definition,
-        suggestions: result.googleData
-            ? quickTranslationSuggestions(result.googleData, result.definition)
+        suggestions: suggestionData
+            ? quickTranslationSuggestions(suggestionData, result.definition)
             : (result.definition ? [{ value: result.definition, label: result.definition, partOfSpeech: '' }] : [])
     };
 }
@@ -2729,10 +2749,11 @@ if (currentPage === 'create') {
 
     async function fetchTranslationWithRetry(word, signal) {
         const result = await fetchVietnameseTranslation(word, signal);
+        const suggestionData = result.googleData || await fetchVietnameseMeaningSuggestions(word, signal);
         return {
             definition: result.definition,
-            suggestions: result.googleData
-                ? getTranslationSuggestions(result.googleData, result.definition)
+            suggestions: suggestionData
+                ? getTranslationSuggestions(suggestionData, result.definition)
                 : (result.definition ? [{ value: result.definition, label: result.definition, partOfSpeech: '' }] : [])
         };
     }
