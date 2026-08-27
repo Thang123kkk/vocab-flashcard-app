@@ -708,7 +708,10 @@ function textValue(value) {
 
 const VOCAB_LOOKUP_TIMEOUT_MS = 3500;
 const TRANSLATION_LOOKUP_TIMEOUT_MS = 2500;
+const DICTIONARY_LOOKUP_TIMEOUT_MS = 2000;
+const WIKTIONARY_LOOKUP_TIMEOUT_MS = 2500;
 const vietnameseTranslationCache = new Map();
+const wiktionaryDictionaryCache = new Map();
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = VOCAB_LOOKUP_TIMEOUT_MS) {
     const timeoutController = new AbortController();
@@ -743,6 +746,78 @@ function decodeLookupText(value) {
     const decoder = document.createElement('textarea');
     decoder.innerHTML = value == null ? '' : String(value);
     return textValue(decoder.value);
+}
+
+function getEnglishWiktionarySection(wikitext) {
+    const source = textValue(wikitext);
+    const englishStart = source.search(/^==English==\s*$/mi);
+    if (englishStart < 0) return '';
+
+    const afterEnglishHeading = source.slice(englishStart).replace(/^[^\n]*(?:\n|$)/, '');
+    const nextLanguageStart = afterEnglishHeading.search(/^==[^=\n]+==\s*$/m);
+    return nextLanguageStart < 0 ? afterEnglishHeading : afterEnglishHeading.slice(0, nextLanguageStart);
+}
+
+function plainWiktionaryText(value) {
+    return decodeLookupText(textValue(value)
+        .replace(/<!--[^]*?-->/g, ' ')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/''+/g, '')
+        .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+        .replace(/\[\[([^\]]+)\]\]/g, '$1')
+        .replace(/\{\{[^{}]*\}\}/g, ' ')
+        .replace(/\[[^\] ]+\s+([^\]]+)\]/g, '$1')
+        .replace(/\s+/g, ' '));
+}
+
+function wiktionaryEntriesFromWikitext(wikitext) {
+    const english = getEnglishWiktionarySection(wikitext);
+    if (!english) return [];
+
+    const pronunciation = textValue(english.match(/\{\{(?:IPA|en-IPA)\|en\|([^|}]+)/i)?.[1]);
+    const partOfSpeech = textValue(english.match(/^===(noun|verb|adjective|adverb|pronoun|preposition|conjunction|interjection|determiner|article|numeral|proper noun|phrase)===\s*$/im)?.[1]);
+    const example = plainWiktionaryText(english.match(/\{\{(?:ux|uxi)\|en\|([^|}]+)/i)?.[1]);
+    const synonyms = [...english.matchAll(/\{\{syn\|en\|([^}]+)\}\}/gi)]
+        .flatMap((match) => match[1].split('|'))
+        .map((item) => plainWiktionaryText(item))
+        .filter((item) => item && !item.includes('=') && !item.startsWith('Thesaurus:'))
+        .filter((item, index, items) => items.indexOf(item) === index)
+        .slice(0, 3);
+    const sourceDefinition = plainWiktionaryText(english.match(/^#\s*(?![:*])(.+)$/m)?.[1]);
+
+    if (!pronunciation && !partOfSpeech && !example && !synonyms.length) return [];
+
+    return [{
+        phonetic: pronunciation,
+        meanings: [{
+            partOfSpeech,
+            synonyms,
+            definitions: [{ definition: sourceDefinition, example, synonyms }]
+        }]
+    }];
+}
+
+async function fetchWiktionaryDictionaryEntries(word, signal) {
+    const cacheKey = textValue(word).toLocaleLowerCase('en');
+    if (wiktionaryDictionaryCache.has(cacheKey)) return wiktionaryDictionaryCache.get(cacheKey);
+
+    try {
+        const response = await fetchWithTimeout(
+            `https://en.wiktionary.org/w/api.php?action=query&prop=revisions&titles=${encodeURIComponent(word)}&rvprop=content&rvslots=main&formatversion=2&format=json&origin=*`,
+            { signal },
+            WIKTIONARY_LOOKUP_TIMEOUT_MS
+        );
+        if (!response.ok) throw new Error(`Wiktionary HTTP ${response.status}`);
+        const data = await response.json();
+        const wikitext = data?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content || '';
+        const entries = wiktionaryEntriesFromWikitext(wikitext);
+        if (entries.length) wiktionaryDictionaryCache.set(cacheKey, entries);
+        return entries;
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        console.warn('Nguồn từ điển dự phòng không phản hồi:', error);
+        return [];
+    }
 }
 
 async function fetchVietnameseTranslation(word, signal) {
@@ -1012,20 +1087,28 @@ function quickTranslationSuggestions(translationData, fallback = '') {
 
 async function fetchQuickDictionary(word, signal, maxAttempts = 1) {
     let bestEntries = [];
+    let lastError = null;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-            const response = await fetchWithTimeout(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { signal });
-            if (response.status === 404) return { entries: [], notFound: true };
+            const response = await fetchWithTimeout(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { signal }, DICTIONARY_LOOKUP_TIMEOUT_MS);
+            if (response.status === 404) return { entries: [], notFound: true, unavailable: false };
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const entries = await response.json();
             if (quickDetailCount(quickDictionaryDetails(entries)) > quickDetailCount(quickDictionaryDetails(bestEntries))) bestEntries = entries;
             if (quickDetailCount(quickDictionaryDetails(bestEntries)) >= 2) break;
         } catch (error) {
             if (error.name === 'AbortError') throw error;
+            lastError = error;
         }
         if (attempt < maxAttempts - 1) await waitForQuickLookupRetry();
     }
-    return { entries: bestEntries, notFound: false };
+
+    if (!bestEntries.length && lastError) {
+        const fallbackEntries = await fetchWiktionaryDictionaryEntries(word, signal);
+        if (fallbackEntries.length) return { entries: fallbackEntries, notFound: false, unavailable: false, fallback: true };
+    }
+
+    return { entries: bestEntries, notFound: false, unavailable: !bestEntries.length && Boolean(lastError), fallback: false };
 }
 
 async function fetchQuickTranslation(word, signal) {
@@ -1159,9 +1242,13 @@ async function lookupQuickWord() {
         const values = { definition: translationLookup.definition, ...details };
         Object.entries(values).forEach(([key, value]) => setQuickAutoValue(quickAddFields[key], value, word));
         renderQuickMeaningSuggestions(translationLookup.suggestions, word, detailsByPart, details, senses, translationLookup.definition);
-        quickAddLastLookupWord = word;
+        if (!dictionaryLookup.unavailable && translationLookup.definition) quickAddLastLookupWord = word;
         const foundCount = Object.values(values).filter(Boolean).length;
-        if (translationLookup.suggestions.length > 1) {
+        if (dictionaryLookup.unavailable && translationLookup.definition) {
+            setQuickAddStatus('Đã có nghĩa, nhưng Dictionary chưa phản hồi nên thiếu phát âm, loại từ, ví dụ và từ đồng nghĩa. Hãy thử lại.', 'error');
+        } else if (dictionaryLookup.fallback && foundCount) {
+            setQuickAddStatus(`Đã tự động điền ${foundCount}/5 mục từ nguồn từ điển dự phòng. Bạn có thể chỉnh sửa trước khi lưu.`, 'success');
+        } else if (translationLookup.suggestions.length > 1) {
             setQuickAddStatus(`Tìm thấy ${translationLookup.suggestions.length} nghĩa. Hãy chọn nghĩa phù hợp bên dưới.`, 'success');
         } else if (foundCount) {
             setQuickAddStatus(`Đã tự động điền ${foundCount}/5 mục. Bạn có thể chỉnh sửa trước khi lưu.`, 'success');
@@ -2509,13 +2596,14 @@ if (currentPage === 'create') {
         let bestDetails = emptyDictionaryDetails();
         let bestDetailsByPart = {};
         let bestSenseDetails = [];
+        let lastError = null;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
-                const response = await fetchWithTimeout(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { signal });
+                const response = await fetchWithTimeout(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, { signal }, DICTIONARY_LOOKUP_TIMEOUT_MS);
 
                 // 404 thường là sai chính tả hoặc từ không có trong từ điển: không gọi lại vô ích.
-                if (response.status === 404) return { details: bestDetails, detailsByPart: bestDetailsByPart, senseDetails: bestSenseDetails, notFound: true };
+                if (response.status === 404) return { details: bestDetails, detailsByPart: bestDetailsByPart, senseDetails: bestSenseDetails, notFound: true, unavailable: false };
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const entries = await response.json();
@@ -2534,12 +2622,35 @@ if (currentPage === 'create') {
                 if (dictionaryDetailCount(bestDetails) >= 2) break;
             } catch (error) {
                 if (error.name === 'AbortError') throw error;
+                lastError = error;
             }
 
             if (attempt < maxAttempts - 1) await waitBeforeLookupRetry();
         }
 
-        return { details: bestDetails, detailsByPart: bestDetailsByPart, senseDetails: bestSenseDetails, notFound: false };
+        if (dictionaryDetailCount(bestDetails) === 0 && lastError) {
+            const fallbackEntries = await fetchWiktionaryDictionaryEntries(word, signal);
+            if (fallbackEntries.length) {
+                const fallbackDetails = findDictionaryDetails(fallbackEntries);
+                return {
+                    details: fallbackDetails,
+                    detailsByPart: findDictionaryDetailsByPart(fallbackEntries),
+                    senseDetails: getDictionarySenses(fallbackEntries),
+                    notFound: false,
+                    unavailable: false,
+                    fallback: true
+                };
+            }
+        }
+
+        return {
+            details: bestDetails,
+            detailsByPart: bestDetailsByPart,
+            senseDetails: bestSenseDetails,
+            notFound: false,
+            unavailable: dictionaryDetailCount(bestDetails) === 0 && Boolean(lastError),
+            fallback: false
+        };
     }
 
     function getTranslationSuggestions(translationData, fallback = '') {
@@ -2596,6 +2707,8 @@ if (currentPage === 'create') {
         let definitionVi = '';
         let definitionSuggestions = [];
         let dictionaryNotFound = false;
+        let dictionaryUnavailable = false;
+        let dictionaryFallback = false;
 
         try {
             const [dictionaryLookup, translationLookup] = await Promise.all([
@@ -2607,6 +2720,8 @@ if (currentPage === 'create') {
             detailsByPart = dictionaryLookup.detailsByPart;
             senseDetails = dictionaryLookup.senseDetails;
             dictionaryNotFound = dictionaryLookup.notFound;
+            dictionaryUnavailable = dictionaryLookup.unavailable;
+            dictionaryFallback = dictionaryLookup.fallback;
             definitionVi = translationLookup.definition;
             definitionSuggestions = translationLookup.suggestions;
         } catch (error) {
@@ -2636,7 +2751,11 @@ if (currentPage === 'create') {
             applyAutoValue(card, '.input-syn', detailsToApply.synonyms, word)
         ].some(Boolean);
 
-        if (needsDefinitionChoice) {
+        if (updated && dictionaryUnavailable) {
+            setLookupStatus(card, 'Đã có nghĩa, nhưng Dictionary chưa phản hồi nên thiếu phát âm, loại từ, ví dụ và từ đồng nghĩa. Hãy rời ô thuật ngữ rồi thử lại.', 'error');
+        } else if (updated && dictionaryFallback) {
+            setLookupStatus(card, `Đã cập nhật ${foundFields.length}/5 mục từ nguồn từ điển dự phòng. Bạn có thể chỉnh sửa trước khi lưu.`, 'success');
+        } else if (needsDefinitionChoice) {
             setLookupStatus(card, `Tìm thấy ${definitionSuggestions.length} nghĩa. Hãy chọn nghĩa phù hợp ở ô Định nghĩa.`, 'success');
         } else if (updated && foundFields.length === 5) {
             setLookupStatus(card, 'Đã cập nhật đầy đủ thông tin tự động.', 'success');
