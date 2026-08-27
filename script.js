@@ -706,7 +706,9 @@ function textValue(value) {
     return typeof value === 'string' ? value.trim() : (value == null ? '' : String(value).trim());
 }
 
-const VOCAB_LOOKUP_TIMEOUT_MS = 4000;
+const VOCAB_LOOKUP_TIMEOUT_MS = 3500;
+const TRANSLATION_LOOKUP_TIMEOUT_MS = 2500;
+const vietnameseTranslationCache = new Map();
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = VOCAB_LOOKUP_TIMEOUT_MS) {
     const timeoutController = new AbortController();
@@ -735,6 +737,57 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = VOCAB_LOOKUP_TIME
         window.clearTimeout(timeoutId);
         parentSignal?.removeEventListener('abort', abortFromParent);
     }
+}
+
+function decodeLookupText(value) {
+    const decoder = document.createElement('textarea');
+    decoder.innerHTML = value == null ? '' : String(value);
+    return textValue(decoder.value);
+}
+
+async function fetchVietnameseTranslation(word, signal) {
+    const cacheKey = textValue(word).toLocaleLowerCase('en');
+    if (vietnameseTranslationCache.has(cacheKey)) return vietnameseTranslationCache.get(cacheKey);
+
+    try {
+        const response = await fetchWithTimeout(
+            `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en%7Cvi`,
+            { signal },
+            TRANSLATION_LOOKUP_TIMEOUT_MS
+        );
+        if (!response.ok) throw new Error(`MyMemory HTTP ${response.status}`);
+        const data = await response.json();
+        const definition = decodeLookupText(data?.responseData?.translatedText);
+        if (data?.responseStatus === 200 && definition) {
+            const result = { definition, googleData: null };
+            vietnameseTranslationCache.set(cacheKey, result);
+            return result;
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        console.warn('Nguồn dịch tiếng Việt không phản hồi, đang thử nguồn dự phòng:', error);
+    }
+
+    try {
+        const response = await fetchWithTimeout(
+            `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&dt=bd&q=${encodeURIComponent(word)}`,
+            { signal },
+            TRANSLATION_LOOKUP_TIMEOUT_MS
+        );
+        if (!response.ok) throw new Error(`Google Translate HTTP ${response.status}`);
+        const googleData = await response.json();
+        const definition = googleData?.[0]?.map((part) => part?.[0]).filter(Boolean).join('') || '';
+        if (definition) {
+            const result = { definition, googleData };
+            vietnameseTranslationCache.set(cacheKey, result);
+            return result;
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        console.warn('Nguồn dịch dự phòng không phản hồi:', error);
+    }
+
+    return { definition: '', googleData: null };
 }
 
 // Chấp nhận cả dữ liệu cũ (def/meaning/word) để bộ thẻ tạo từ các phiên bản trước vẫn học được.
@@ -975,20 +1028,14 @@ async function fetchQuickDictionary(word, signal, maxAttempts = 1) {
     return { entries: bestEntries, notFound: false };
 }
 
-async function fetchQuickTranslation(word, signal, maxAttempts = 1) {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
-            const response = await fetchWithTimeout(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&dt=bd&q=${encodeURIComponent(word)}`, { signal });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-            const definition = data?.[0]?.map((part) => part?.[0]).filter(Boolean).join('') || '';
-            if (definition) return { definition, suggestions: quickTranslationSuggestions(data, definition) };
-        } catch (error) {
-            if (error.name === 'AbortError') throw error;
-        }
-        if (attempt < maxAttempts - 1) await waitForQuickLookupRetry();
-    }
-    return { definition: '', suggestions: [] };
+async function fetchQuickTranslation(word, signal) {
+    const result = await fetchVietnameseTranslation(word, signal);
+    return {
+        definition: result.definition,
+        suggestions: result.googleData
+            ? quickTranslationSuggestions(result.googleData, result.definition)
+            : (result.definition ? [{ value: result.definition, label: result.definition, partOfSpeech: '' }] : [])
+    };
 }
 
 function normalizeQuickMeaning(value) {
@@ -1100,40 +1147,17 @@ async function lookupQuickWord() {
     quickAddSuggestions.hidden = true;
     setQuickAddStatus('Đang tìm nhiều nghĩa và thông tin từ…', 'loading');
 
-    let dictionaryLookup = { entries: [], notFound: false };
-    let translationLookup = { definition: '', suggestions: [] };
-    let details = emptyQuickDetails();
-    let detailsByPart = {};
-    let senses = [];
-    const isCurrentLookup = () => !controller.signal.aborted && quickAddTermInput.value.trim() === word;
-
     try {
-        const dictionaryTask = fetchQuickDictionary(word, controller.signal).then((result) => {
-            dictionaryLookup = result;
-            if (!isCurrentLookup()) return;
-            details = quickDictionaryDetails(result.entries);
-            detailsByPart = quickDictionaryDetailsByPart(result.entries);
-            senses = quickDictionarySenses(result.entries);
-            Object.entries(details).forEach(([key, value]) => setQuickAutoValue(quickAddFields[key], value, word));
-            if (translationLookup.definition) {
-                renderQuickMeaningSuggestions(translationLookup.suggestions, word, detailsByPart, details, senses, translationLookup.definition);
-            } else if (quickDetailCount(details)) {
-                setQuickAddStatus('Đã tìm thấy thông tin từ. Đang dịch nghĩa…', 'loading');
-            }
-        });
-        const translationTask = fetchQuickTranslation(word, controller.signal).then((result) => {
-            translationLookup = result;
-            if (!isCurrentLookup()) return;
-            setQuickAutoValue(quickAddDefinitionInput, result.definition, word);
-            renderQuickMeaningSuggestions(result.suggestions, word, detailsByPart, details, senses, result.definition);
-            if (result.definition && !quickDetailCount(details)) {
-                setQuickAddStatus('Đã tìm thấy nghĩa. Đang tải thông tin bổ sung…', 'loading');
-            }
-        });
-
-        await Promise.all([dictionaryTask, translationTask]);
-        if (!isCurrentLookup()) return;
+        const [dictionaryLookup, translationLookup] = await Promise.all([
+            fetchQuickDictionary(word, controller.signal),
+            fetchQuickTranslation(word, controller.signal)
+        ]);
+        if (controller.signal.aborted || quickAddTermInput.value.trim() !== word) return;
+        const details = quickDictionaryDetails(dictionaryLookup.entries);
+        const detailsByPart = quickDictionaryDetailsByPart(dictionaryLookup.entries);
+        const senses = quickDictionarySenses(dictionaryLookup.entries);
         const values = { definition: translationLookup.definition, ...details };
+        Object.entries(values).forEach(([key, value]) => setQuickAutoValue(quickAddFields[key], value, word));
         renderQuickMeaningSuggestions(translationLookup.suggestions, word, detailsByPart, details, senses, translationLookup.definition);
         quickAddLastLookupWord = word;
         const foundCount = Object.values(values).filter(Boolean).length;
@@ -2545,21 +2569,14 @@ if (currentPage === 'create') {
         return suggestions;
     }
 
-    async function fetchTranslationWithRetry(word, signal, maxAttempts = 1) {
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            try {
-                const response = await fetchWithTimeout(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&dt=bd&q=${encodeURIComponent(word)}`, { signal });
-                if (!response.ok) return { definition: '', suggestions: [] };
-                const translationData = await response.json();
-                const definition = translationData?.[0]?.map((part) => part?.[0]).filter(Boolean).join('') || '';
-                if (definition) return { definition, suggestions: getTranslationSuggestions(translationData, definition) };
-            } catch (error) {
-                if (error.name === 'AbortError') throw error;
-            }
-
-            if (attempt < maxAttempts - 1) await waitBeforeLookupRetry();
-        }
-        return { definition: '', suggestions: [] };
+    async function fetchTranslationWithRetry(word, signal) {
+        const result = await fetchVietnameseTranslation(word, signal);
+        return {
+            definition: result.definition,
+            suggestions: result.googleData
+                ? getTranslationSuggestions(result.googleData, result.definition)
+                : (result.definition ? [{ value: result.definition, label: result.definition, partOfSpeech: '' }] : [])
+        };
     }
 
     async function lookUpVocabulary(termInput) {
@@ -2579,44 +2596,26 @@ if (currentPage === 'create') {
         let definitionVi = '';
         let definitionSuggestions = [];
         let dictionaryNotFound = false;
-        const isCurrentLookup = () => !controller.signal.aborted && termInput.value.trim() === word;
 
         try {
-            const dictionaryTask = fetchDictionaryDetailsWithRetry(word, controller.signal).then((result) => {
-                details = result.details;
-                detailsByPart = result.detailsByPart;
-                senseDetails = result.senseDetails;
-                dictionaryNotFound = result.notFound;
-                if (!isCurrentLookup()) return;
-                applyAutoValue(card, '.input-pron', details.phonetic, word);
-                applyAutoValue(card, '.input-type', details.partOfSpeech, word);
-                applyAutoValue(card, '.input-ex', details.example, word);
-                applyAutoValue(card, '.input-syn', details.synonyms, word);
-                if (definitionVi) {
-                    showDefinitionSuggestions(card, definitionSuggestions, word, detailsByPart, details, senseDetails, definitionVi);
-                } else if (dictionaryDetailCount(details)) {
-                    setLookupStatus(card, 'Đã tìm thấy thông tin từ. Đang dịch nghĩa…', 'loading');
-                }
-            });
-            const translationTask = fetchTranslationWithRetry(word, controller.signal).then((result) => {
-                definitionVi = result.definition;
-                definitionSuggestions = result.suggestions;
-                if (!isCurrentLookup()) return;
-                applyAutoValue(card, '.input-def', definitionVi, word);
-                showDefinitionSuggestions(card, definitionSuggestions, word, detailsByPart, details, senseDetails, definitionVi);
-                if (definitionVi && !dictionaryDetailCount(details)) {
-                    setLookupStatus(card, 'Đã tìm thấy nghĩa. Đang tải thông tin bổ sung…', 'loading');
-                }
-            });
+            const [dictionaryLookup, translationLookup] = await Promise.all([
+                fetchDictionaryDetailsWithRetry(word, controller.signal),
+                fetchTranslationWithRetry(word, controller.signal)
+            ]);
 
-            await Promise.all([dictionaryTask, translationTask]);
+            details = dictionaryLookup.details;
+            detailsByPart = dictionaryLookup.detailsByPart;
+            senseDetails = dictionaryLookup.senseDetails;
+            dictionaryNotFound = dictionaryLookup.notFound;
+            definitionVi = translationLookup.definition;
+            definitionSuggestions = translationLookup.suggestions;
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.warn('Không thể tự động tra từ:', error);
         }
 
         // Không để một yêu cầu cũ (ví dụ “hello”) ghi đè dữ liệu của từ vừa sửa (“father”).
-        if (!isCurrentLookup()) return;
+        if (controller.signal.aborted || termInput.value.trim() !== word) return;
 
         const foundFields = [
             definitionVi && 'nghĩa',
