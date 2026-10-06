@@ -3319,6 +3319,25 @@ if (currentPage === 'study') {
         showToast(isProgressMode ? 'Chế độ Tiến độ: đánh dấu Chưa nhớ hoặc Đã thuộc.' : 'Chế độ Điều hướng: chuyển thẻ trước hoặc sau.', 'info');
     });
 
+    function advanceAfterProgressUpdate(sourceIndex) {
+        if (activeStudyFilter === 'unlearned') {
+            transitionCardContent(flashcardContainer, () => {
+                applyStudyFilter({ afterSourceIndex: sourceIndex, shouldUpdate: false });
+                if (isRandomMode && wordsArray.length > 1) currentIndex = getRandomIndex();
+                updateUI();
+            }, isRandomMode ? 'random' : 'next');
+        } else if (isRandomMode) {
+            transitionCardContent(flashcardContainer, () => {
+                currentIndex = getRandomIndex();
+                updateUI();
+            }, 'random');
+        } else if (currentIndex < wordsArray.length - 1) {
+            transitionCardContent(flashcardContainer, () => { currentIndex++; updateUI(); }, 'next');
+        } else {
+            renderList();
+        }
+    }
+
     // --- CẬP NHẬT: LOGIC PHÂN LOẠI SM-2 KHI BẤM NÚT ---
     document.getElementById('btn-fail').addEventListener('click', () => {
         if (activeCardTransitions.has(flashcardContainer)) return;
@@ -3341,11 +3360,7 @@ if (currentPage === 'study') {
         if(typeof recordWordStudied === 'function') recordWordStudied(currentUser.uid);
         navigator.vibrate?.(12);
         
-        if (activeStudyFilter === 'unlearned') {
-            transitionCardContent(flashcardContainer, () => applyStudyFilter({ afterSourceIndex: sourceIndex }), 'next');
-        } else if (currentIndex < wordsArray.length - 1) {
-            transitionCardContent(flashcardContainer, () => { currentIndex++; updateUI(); }, 'next');
-        } else { renderList(); }
+        advanceAfterProgressUpdate(sourceIndex);
     });
     
     document.getElementById('btn-pass').addEventListener('click', () => {
@@ -3362,11 +3377,7 @@ if (currentPage === 'study') {
         if(typeof recordWordStudied === 'function') recordWordStudied(currentUser.uid);
         navigator.vibrate?.(18);
         
-        if (activeStudyFilter === 'unlearned') {
-            transitionCardContent(flashcardContainer, () => applyStudyFilter({ afterSourceIndex: sourceIndex }), 'next');
-        } else if (currentIndex < wordsArray.length - 1) {
-            transitionCardContent(flashcardContainer, () => { currentIndex++; updateUI(); }, 'next');
-        } else { renderList(); }
+        advanceAfterProgressUpdate(sourceIndex);
     });
 
     document.addEventListener('keydown', (e) => {
