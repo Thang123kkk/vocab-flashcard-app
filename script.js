@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-import { getFirestore, collection, getDocs, deleteDoc, doc, query, where, addDoc, getDoc, setDoc, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, deleteDoc, doc, query, where, addDoc, getDoc, setDoc, updateDoc, runTransaction, deleteField, FieldPath } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
 // COPY LẠI CONFIG CỦA BẠN VÀO ĐÂY
@@ -2038,24 +2038,46 @@ async function renderForecastChart(userId) {
             daysMilestones.push(d.getTime());
         }
 
-        querySnapshot.forEach(docSnap => {
-            const data = docSnap.data().learnedCards || {};
+        const progressWithSets = await Promise.all(querySnapshot.docs.map(async (docSnap) => {
+            const progressData = docSnap.data();
+            try {
+                const setDocSnap = progressData.setId
+                    ? await getDoc(doc(db, 'study_sets', progressData.setId))
+                    : null;
+                return {
+                    progressData,
+                    words: setDocSnap?.exists() ? normalizeVocabularyWords(setDocSnap.data().words) : [],
+                    setTitle: setDocSnap?.exists() ? setDocSnap.data().title : 'Bộ thẻ không xác định'
+                };
+            } catch (error) {
+                console.warn('Không thể tải bộ thẻ cho lịch dự báo:', error);
+                return { progressData, words: [], setTitle: 'Bộ thẻ không xác định' };
+            }
+        }));
+        const forecastCards = Array.from({ length: 7 }, () => []);
+
+        progressWithSets.forEach(({ progressData, words, setTitle }) => {
+            const data = progressData.learnedCards || {};
             for (const key in data) {
                 const card = data[key];
                 if (card.status === 'learned') {
                     mastered++; // Đếm từ thuần thục
                 } else if (card.status === 'reviewing') {
-                    const reviewTime = card.nextReview;
+                    const reviewTime = Number(card.nextReview);
+                    const word = words[Number(key)];
+                    const forecastCard = word ? { ...word, setTitle } : null;
                     
                     // Thẻ quá hạn hoặc đến hạn hôm nay
                     if (reviewTime < daysMilestones[1]) {
                         dueToday++;
                         forecastCounts[0]++;
+                        if (forecastCard) forecastCards[0].push(forecastCard);
                     } else {
                         // Phân bổ vào 6 ngày tiếp theo
                         for (let i = 1; i < 7; i++) {
                             if (reviewTime >= daysMilestones[i] && reviewTime < daysMilestones[i+1]) {
                                 forecastCounts[i]++;
+                                if (forecastCard) forecastCards[i].push(forecastCard);
                                 break;
                             }
                         }
@@ -2095,18 +2117,67 @@ async function renderForecastChart(userId) {
             const isTodayClass = (i === 0) ? 'today' : '';
             const countText = count > 0 ? count : '';
             
-            barsContainer.innerHTML += `
-                <div class="bar-col ${isTodayClass}">
+            const barColumn = document.createElement('button');
+            barColumn.type = 'button';
+            barColumn.className = `bar-col ${isTodayClass}`;
+            barColumn.setAttribute('aria-label', `${dayLabel}: ${count} thẻ cần ôn. Bấm để xem danh sách.`);
+            barColumn.innerHTML = `
                     <div class="bar-count">${countText}</div>
                     <div class="bar ${isActive}" style="height: ${height > 0 ? height : 2}px;"></div>
                     <span class="day-label">${dayLabel}</span>
-                </div>
             `;
+            barColumn.addEventListener('click', () => openForecastDayModal(d, forecastCards[i]));
+            barsContainer.appendChild(barColumn);
         }
     } catch (error) {
         console.error("Lỗi vẽ biểu đồ:", error);
     }
 }
+
+function openForecastDayModal(date, cards) {
+    const modal = document.getElementById('forecast-day-modal');
+    const title = document.getElementById('forecast-day-modal-title');
+    const summary = document.getElementById('forecast-day-modal-summary');
+    const wordList = document.getElementById('forecast-day-word-list');
+    if (!modal || !title || !summary || !wordList) return;
+
+    const dateLabel = date.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' });
+    title.textContent = `Từ cần ôn ${dateLabel}`;
+    summary.textContent = cards.length
+        ? `${cards.length} thẻ dự kiến xuất hiện trong lịch ôn${date.getDate() === new Date().getDate() ? ' (gồm cả thẻ quá hạn)' : ''}.`
+        : 'Chưa có thẻ nào được lên lịch ôn vào ngày này.';
+    wordList.replaceChildren();
+
+    if (!cards.length) {
+        const empty = document.createElement('p');
+        empty.className = 'forecast-day-empty';
+        empty.textContent = 'Bạn có thể tận dụng ngày này để học từ mới hoặc nghỉ ngơi.';
+        wordList.appendChild(empty);
+    } else {
+        [...cards]
+            .sort((a, b) => a.term.localeCompare(b.term, 'en'))
+            .forEach((card) => {
+                const item = document.createElement('article');
+                item.className = 'forecast-day-word';
+                const term = document.createElement('strong');
+                term.textContent = card.term;
+                const definition = document.createElement('span');
+                definition.textContent = card.definition || 'Chưa có nghĩa';
+                const set = document.createElement('small');
+                set.textContent = card.setTitle;
+                item.append(term, definition, set);
+                wordList.appendChild(item);
+            });
+    }
+
+    modal.style.display = 'flex';
+    window.setTimeout(() => document.getElementById('btn-close-forecast-day-modal')?.focus(), 0);
+}
+
+document.getElementById('btn-close-forecast-day-modal')?.addEventListener('click', () => {
+    const modal = document.getElementById('forecast-day-modal');
+    if (modal) modal.style.display = 'none';
+});
 
 
     // ==========================================
@@ -3404,6 +3475,7 @@ if (currentPage === 'repetition') {
     let dueCards = []; // Mảng 1: Chỉ chứa thẻ cần học NGAY LÚC NÀY
     let allUpcomingCards = []; // Mảng 2: Chứa TẤT CẢ thẻ trong SRS để vẽ danh sách
     let currentCardIndex = 0;
+    let isSrsListEditing = false;
 
     const flashcard = document.getElementById('flashcard');
     const flashcardContainer = document.getElementById('fc-container');
@@ -3416,6 +3488,10 @@ if (currentPage === 'repetition') {
     const srsListToggle = document.getElementById('btn-toggle-srs-list');
     const srsListContent = document.getElementById('srs-list-content');
     const srsListSummary = document.getElementById('srs-list-summary');
+    const srsEditToggle = document.getElementById('btn-toggle-srs-edit');
+    const srsEditActions = document.getElementById('srs-list-edit-actions');
+    const srsEditHint = document.getElementById('srs-list-edit-hint');
+    const removeSrsDuplicatesButton = document.getElementById('btn-remove-srs-duplicates');
     const repetitionGuideModal = document.getElementById('repetition-guide-modal');
 
     const closeRepetitionGuide = () => { repetitionGuideModal.style.display = 'none'; };
@@ -3429,6 +3505,16 @@ if (currentPage === 'repetition') {
         const isExpanded = srsListToggle.getAttribute('aria-expanded') === 'true';
         srsListToggle.setAttribute('aria-expanded', String(!isExpanded));
         srsListContent.hidden = isExpanded;
+    });
+
+    srsEditToggle?.addEventListener('click', () => {
+        isSrsListEditing = !isSrsListEditing;
+        srsEditToggle.innerHTML = isSrsListEditing
+            ? '<i class="fa-solid fa-check"></i> Xong'
+            : '<i class="fa-solid fa-pen"></i> Chỉnh sửa';
+        srsEditActions.hidden = !isSrsListEditing;
+        srsEditHint.hidden = !isSrsListEditing;
+        renderSRSList();
     });
 
     // Hàm gọi loa
@@ -3521,8 +3607,14 @@ if (currentPage === 'repetition') {
                 </div>
                 <div style="text-align: right; display: flex; align-items: center; gap: 10px;">
                     ${statusHTML}
+                    ${isSrsListEditing ? '<button class="srs-card-delete-btn" type="button" title="Xóa thẻ này khỏi SRS" aria-label="Xóa thẻ này khỏi SRS"><i class="fa-solid fa-trash-can"></i></button>' : ''}
                 </div>
             `;
+            row.querySelector('.srs-card-delete-btn')?.addEventListener('click', () => {
+                if (confirm(`Xóa “${card.term}” khỏi lịch ôn SRS?`)) {
+                    removeSrsCards([item], `Đã xóa “${card.term}” khỏi lịch ôn.`);
+                }
+            });
             srsListContainer.appendChild(row);
         });
         const dueCount = allUpcomingCards.filter((item) => item.progress.nextReview < dueCutoff).length;
@@ -3530,6 +3622,66 @@ if (currentPage === 'repetition') {
             ? `${dueCount} thẻ cần ôn · ${allUpcomingCards.length} thẻ trong kế hoạch`
             : `Không có thẻ đến hạn · ${allUpcomingCards.length} thẻ trong kế hoạch`;
     }
+
+    function getSrsDuplicateCards() {
+        const normalize = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi');
+        const keptCards = new Map();
+        const duplicates = [];
+
+        // Danh sách đã được sắp theo nextReview tăng dần, nên thẻ đầu tiên ở mỗi
+        // nhóm là thẻ có lịch ôn gần nhất và được giữ lại.
+        [...allUpcomingCards]
+            .sort((a, b) => a.progress.nextReview - b.progress.nextReview)
+            .forEach((item) => {
+                const key = `${normalize(item.wordData.term)}\u0000${normalize(item.wordData.definition)}`;
+                if (keptCards.has(key)) duplicates.push(item);
+                else keptCards.set(key, item);
+            });
+
+        return duplicates;
+    }
+
+    async function removeSrsCards(cards, successMessage) {
+        if (!cards.length || !currentUser) return;
+        const buttons = document.querySelectorAll('.srs-list-tool-btn, .srs-card-delete-btn');
+        buttons.forEach((button) => { button.disabled = true; });
+
+        try {
+            const cardsBySet = new Map();
+            cards.forEach((card) => {
+                const setCards = cardsBySet.get(card.setId) || [];
+                setCards.push(card);
+                cardsBySet.set(card.setId, setCards);
+            });
+
+            await Promise.all([...cardsBySet.entries()].map(([setId, setCards]) => {
+                const updates = setCards.flatMap((card) => [
+                    new FieldPath('learnedCards', String(card.wordIndex)),
+                    deleteField()
+                ]);
+                return updateDoc(doc(db, 'user_progress', `${currentUser.uid}_${setId}`), ...updates);
+            }));
+
+            await fetchDueCards();
+            showToast(successMessage, 'success');
+        } catch (error) {
+            console.error('Không thể cập nhật danh sách SRS:', error);
+            showToast('Chưa thể cập nhật lịch ôn. Vui lòng thử lại.', 'error');
+        } finally {
+            buttons.forEach((button) => { button.disabled = false; });
+        }
+    }
+
+    removeSrsDuplicatesButton?.addEventListener('click', () => {
+        const duplicates = getSrsDuplicateCards();
+        if (!duplicates.length) {
+            showToast('Không tìm thấy thẻ trùng trong lịch ôn.', 'info');
+            return;
+        }
+        if (confirm(`Lọc ${duplicates.length} thẻ trùng khỏi SRS? Mỗi nhóm sẽ giữ lại thẻ có lịch ôn gần nhất.`)) {
+            removeSrsCards(duplicates, `Đã lọc ${duplicates.length} thẻ trùng khỏi lịch ôn.`);
+        }
+    });
 
     function getStartOfTodayTimestamp() {
         const startOfToday = new Date();

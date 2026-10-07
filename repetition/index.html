@@ -57,7 +57,17 @@
 
         <section class="srs-list-panel">
             <button id="btn-toggle-srs-list" class="srs-list-toggle" type="button" aria-expanded="false" aria-controls="srs-list-content"><span class="srs-list-toggle-icon"><i class="fa-solid fa-list-check"></i></span><span><span class="srs-list-toggle-label">Kế hoạch ôn tập</span><strong>Từ đến hạn</strong><small id="srs-list-summary">Đang tải danh sách...</small></span><i class="fa-solid fa-chevron-down srs-list-chevron"></i></button>
-            <div id="srs-list-content" class="srs-list-content" hidden><div id="srs-word-list-container"></div></div>
+            <div id="srs-list-content" class="srs-list-content" hidden>
+                <div class="srs-list-tools">
+                    <button id="btn-toggle-srs-edit" class="srs-list-tool-btn" type="button"><i class="fa-solid fa-pen"></i> Chỉnh sửa</button>
+                    <div id="srs-list-edit-actions" class="srs-list-edit-actions" hidden>
+                        <span>Chọn thẻ cần bỏ khỏi lịch ôn</span>
+                        <button id="btn-remove-srs-duplicates" class="srs-list-tool-btn srs-list-cleanup-btn" type="button"><i class="fa-solid fa-clone"></i> Lọc thẻ trùng</button>
+                    </div>
+                </div>
+                <p id="srs-list-edit-hint" class="srs-list-edit-hint" hidden>Thẻ trùng được nhận diện theo từ và nghĩa; khi lọc, lịch ôn gần nhất sẽ được giữ lại.</p>
+                <div id="srs-word-list-container"></div>
+            </div>
         </section>
     </main>
 
