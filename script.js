@@ -4020,26 +4020,36 @@ if (currentPage === 'quiz') {
         if (!currentUser) return requestSignIn(statusType === 'reviewing' ? 'đưa từ vào Lặp lại ngắt quãng' : 'lưu từ đã thuộc');
         const qData = questions[currentQuestionIndex];
         const progressRef = doc(db, "user_progress", `${currentUser.uid}_${setId}`);
+        const originalButtonContent = btnElement.innerHTML;
         
         btnElement.innerHTML = brandButtonLoading('Đang lưu...');
+        btnFail.disabled = true;
+        btnPass.disabled = true;
         
         try {
-            const snap = await getDoc(progressRef);
-            let allCards = snap.exists() ? snap.data().learnedCards : {};
-            
-            if (statusType === 'learned') {
-                allCards[qData.originalIndex] = { status: 'learned' };
-            } else {
-                allCards[qData.originalIndex] = {
+            // Không đọc toàn bộ tài liệu trước khi ghi. getDoc() có thể phải chờ
+            // mạng, khiến nút bị kẹt ở trạng thái "Đang lưu...". merge chỉ cập
+            // nhật đúng thẻ hiện tại, đồng thời tránh ghi đè tiến độ của thẻ khác.
+            const cardProgress = statusType === 'learned'
+                ? { status: 'learned' }
+                : {
                     status: 'reviewing', repetition: 0, interval: 0, easeFactor: 2.5, nextReview: new Date().getTime()
                 };
-            }
             
-            await setDoc(progressRef, { userId: currentUser.uid, setId: setId, learnedCards: allCards }, { merge: true });
+            await setDoc(progressRef, {
+                userId: currentUser.uid,
+                setId: setId,
+                learnedCards: { [qData.originalIndex]: cardProgress }
+            }, { merge: true });
             
             btnElement.innerHTML = statusType === 'learned' ? '<i class="fa-solid fa-check-double"></i> Đã lưu vào Đã thuộc' : '<i class="fa-solid fa-check-double"></i> Đã đưa vào Lặp lại ngắt quảng';
-            btnFail.disabled = true; btnPass.disabled = true; // Khóa nút chống bấm 2 lần
-        } catch (error) { console.error("Lỗi:", error); }
+        } catch (error) {
+            console.error("Không thể lưu tiến độ Quiz:", error);
+            btnElement.innerHTML = originalButtonContent;
+            btnFail.disabled = false;
+            btnPass.disabled = false;
+            showToast('Chưa thể lưu tiến độ. Vui lòng kiểm tra kết nối và thử lại.', 'error');
+        }
     }
 
     // Gắn sự kiện thanh công cụ
